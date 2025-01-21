@@ -1,14 +1,10 @@
 from openai import OpenAI
-import streamlit as st
-import pandas as pd
-import numpy as np
 import datetime
 import requests
 import json
 import time
 import urllib.parse
 import urllib.request
-from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
@@ -63,25 +59,25 @@ def generate_MC_question_with_answers(title, extract):
     return completion.choices[0].message.content
 
 
-def find_corresponding_news(titles, n, m):
-    """given a list of titles, collect news articles corresponding to the first n titles
-    Returns a list of strings, where each string can be used as a context for LLM
-    """
-    gnews_key=st.secrets["gnews_key"]
-    all_contexts=[]
-    for title in titles[:n]:
-        context=[]
-        url = f'https://gnews.io/api/v4/search?q="{urllib.parse.quote(title)}"&lang=en&country=us&max={m}&apikey={gnews_key}'
-        with urllib.request.urlopen(url) as res:
-            data = json.loads(res.read().decode("utf-8"))
-            for i in range(len(data['articles'])):
-                context.append(data["articles"][i]['content'])
-        time.sleep(1)
-        all_contexts.append(context)
-    all_str_context=[]
-    for context in all_contexts:
-        strcontext=""
-        for i in context:
-            strcontext += i +'\n'
-        all_str_context.append(strcontext)
-    return all_str_context
+# def find_corresponding_news(titles, n, m):
+#     """given a list of titles, collect news articles corresponding to the first n titles
+#     Returns a list of strings, where each string can be used as a context for LLM
+#     """
+#     gnews_key=st.secrets["gnews_key"]
+#     all_contexts=[]
+#     for title in titles[:n]:
+#         context=[]
+#         url = f'https://gnews.io/api/v4/search?q="{urllib.parse.quote(title)}"&lang=en&country=us&max={m}&apikey={gnews_key}'
+#         with urllib.request.urlopen(url) as res:
+#             data = json.loads(res.read().decode("utf-8"))
+#             for i in range(len(data['articles'])):
+#                 context.append(data["articles"][i]['content'])
+#         time.sleep(1)
+#         all_contexts.append(context)
+#     all_str_context=[]
+#     for context in all_contexts:
+#         strcontext=""
+#         for i in context:
+#             strcontext += i +'\n'
+#         all_str_context.append(strcontext)
+#     return all_str_context
