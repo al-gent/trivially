@@ -29,3 +29,7 @@ jobs:
         run: python populate_database.py
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          wiki_key: ${{ secrets.wiki_key }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          
+
