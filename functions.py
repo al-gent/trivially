@@ -2,8 +2,6 @@ from openai import OpenAI
 import datetime
 import requests
 import json
-import time
-import urllib.parse
 import urllib.request
 import os
 from dotenv import load_dotenv
