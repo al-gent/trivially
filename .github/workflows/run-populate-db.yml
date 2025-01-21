@@ -1,4 +1,4 @@
-name: Run populate-databse Script
+name: Run populate-database Script
 
 on:
   workflow_dispatch: # Allows manual triggering from the GitHub Actions UI
@@ -10,25 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the repository
-    - name: Checkout code
-      uses: actions/checkout@v3
+      # Step 1: Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    # Step 2: Set up Python environment
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.9" # Specify the Python version
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9" # Specify the Python version
 
-    # Step 3: Install dependencies
-    - name: Install dependencies
-      run: pip install -r requirements.txt
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-    # Step 4: Set up environment variables
-    - name: Set environment variables
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: echo "Environment variables are set."
-    # Step 5: Run your script
-    - name: Run the script
-      run: python populate_database.py
+      # Step 4: Run the script with environment variables
+      - name: Run the script
+        run: python populate_database.py
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
