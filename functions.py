@@ -20,7 +20,7 @@ def wiki_trending_today(n):
     language_code = 'en'
     load_dotenv()
     wiki_key = os.getenv("wiki_key")
-    user_agent = os.getenv('User-Agent')
+    user_agent = '94gent@gmail.com'
     headers = {
         'Authorization': wiki_key,
         'User-Agent': user_agent
