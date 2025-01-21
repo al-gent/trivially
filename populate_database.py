@@ -3,14 +3,11 @@ import os
 from dotenv import load_dotenv
 from functions import wiki_trending_today, generate_MC_question_with_answers
 
-
-
-
 def insert_data():
     load_dotenv()
     DATABASE_URL = os.getenv("DATABASE_URL")
     questions = []
-    titles, extracts = wiki_trending_today(1)
+    titles, extracts = wiki_trending_today(10)
     print('finished wikepedia')
 
     for i in range(len(titles)):
