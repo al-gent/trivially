@@ -28,7 +28,7 @@ jobs:
     - name: Set environment variables
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
+        run: echo "Environment variables are set."
     # Step 5: Run your script
     - name: Run the script
       run: python populate_database.py
