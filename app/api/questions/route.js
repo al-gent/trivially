@@ -17,7 +17,7 @@ export async function GET() {
       SELECT id, q, ca, ica1, ica2, ica3, category, difficulty, rating, subject
       FROM questions
       ORDER BY id DESC
-      LIMIT 25;
+      LIMIT 10;
     `;
     const { rows } = await client.query(query);
 
