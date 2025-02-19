@@ -5,14 +5,17 @@ import json
 import urllib.request
 import os
 from dotenv import load_dotenv
+import pytz
 import praw
 
 
 def wiki_trending_today(n):
     """Grab n trending wikipedia articles from today
     Returns a tuple, (titles, extracts)"""
-    today = datetime.datetime.now()
+    pacific = pytz.timezone('US/Pacific')
+    today = datetime.datetime.now(pacific)
     date = today.strftime('%Y/%m/%d')
+    print(f"Date being used: {date}")  # e.g. "2023/08/02"
     language_code = 'en'
     load_dotenv()
     wiki_key = os.getenv("wiki_key")
