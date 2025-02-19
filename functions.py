@@ -5,6 +5,8 @@ import json
 import urllib.request
 import os
 from dotenv import load_dotenv
+import praw
+
 
 def wiki_trending_today(n):
     """Grab n trending wikipedia articles from today
@@ -31,51 +33,81 @@ def wiki_trending_today(n):
             extracts.append(i['extract'])
     return titles, extracts
 
-def generate_MC_question_with_answers(title, extract):
-    client = OpenAI()
 
-    t, e = title, extract
+
+
+def get_reddit(title, n=3):
+    """Finds relevant reddit posts about a given title.
+    Input: title -> str
+            n -> number of headlines & texts to return
+    Output: headlines (list of strings), text (list of strings)
+    """
+    load_dotenv()
+
+    reddit_client_id = os.getenv("reddit_client_id")
+    reddit_client_secret = os.getenv("reddit_client_secret")
+    reddit_user_agent = os.getenv("reddit_user_agent")
+
+    reddit = praw.Reddit(
+        client_id=reddit_client_id,
+        client_secret=reddit_client_secret,
+        user_agent=reddit_user_agent
+    )
+    headlines = []
+    text = []
+    dates=[]
+    subreddit = reddit.subreddit("all")
+    # Perform a search
+    search_query = title
+    for submission in subreddit.search(
+        query=search_query,
+        sort="relevance",         # or "new", "relevance", etc.
+        time_filter="week", # or "all", "month", "week", "day", "hour"
+        limit=n
+    ):
+        timestamp = submission.created_utc
+        post_date = datetime.datetime.fromtimestamp(timestamp)
+        r_title = submission.title
+        headlines.append(r_title)
+        text.append(submission.selftext)
+        dates.append(post_date.strftime("%Y-%m-%d %H:%M"))
+    return (headlines, text, dates)
+
+
+
+def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts):
+    client = OpenAI()
 
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
-                "content": "You are a trivia master. Create an engaging multiple-choice trivia question."
-            },
-            {
-                "role": "system",
-                "content": "Your response format must be: ['<question>', '<The correct answer>', '<Incorrect option 1>', '<Incorrect option 2>', '<Incorrect option 3>', '<question category>', '<question difficulty (from 1-10)>', '<question rating based on how much you think people will like this question (from 1-10)>', 'Who or what is the subject of this question']. All values must be enclosed in double quotes and formatted as strings."
+                "content": """You are a trivia master. Create an engaging multiple-choice trivia question. 
+                Respond with only the following array of strings, with no additional explanation or text.
+                Do not include markdown formatting or any text outside of the list. Do not add line breaks between entries.
+                [   "<question>",
+                    "<The correct answer>",
+                    "<Incorrect option 1>",
+                    "<Incorrect option 2>",
+                    "<Incorrect option 3>",
+                    "<question category>",
+                    "<question difficulty (1-10)>",
+                    "<question rating (1-10)>",
+                    "<subject of question>" ]
+    . 
+                All values must be enclosed in double quotes and formatted as strings."""
             },
             {
                 "role": "user",
-                "content": f"Ask a multiple-choice trivia question about the topic '{t}'. Ensure that the question references this context: {e}."
+                "content": f"""Ask a multiple-choice trivia question about '{title}'.
+                Use this context as background information: {extract}.
+                Use these reddit posts to understand why this topic is relevant right now.
+                {[(post, text) for (post, text) in zip(reddit_posts, reddit_texts)]}
+                Allude to why this topic is relevant in the question."""
             }
         ])
 
     # Extract and store the generated question
     return completion.choices[0].message.content
 
-
-# def find_corresponding_news(titles, n, m):
-#     """given a list of titles, collect news articles corresponding to the first n titles
-#     Returns a list of strings, where each string can be used as a context for LLM
-#     """
-#     gnews_key=st.secrets["gnews_key"]
-#     all_contexts=[]
-#     for title in titles[:n]:
-#         context=[]
-#         url = f'https://gnews.io/api/v4/search?q="{urllib.parse.quote(title)}"&lang=en&country=us&max={m}&apikey={gnews_key}'
-#         with urllib.request.urlopen(url) as res:
-#             data = json.loads(res.read().decode("utf-8"))
-#             for i in range(len(data['articles'])):
-#                 context.append(data["articles"][i]['content'])
-#         time.sleep(1)
-#         all_contexts.append(context)
-#     all_str_context=[]
-#     for context in all_contexts:
-#         strcontext=""
-#         for i in context:
-#             strcontext += i +'\n'
-#         all_str_context.append(strcontext)
-#     return all_str_context

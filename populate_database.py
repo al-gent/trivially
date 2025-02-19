@@ -1,18 +1,28 @@
 import psycopg2
 import os
 from dotenv import load_dotenv
-from functions import wiki_trending_today, generate_MC_question_with_answers
+from functions import wiki_trending_today, generate_MC_question_with_answers, get_reddit
 
 def insert_data():
     load_dotenv()
     DATABASE_URL = os.getenv("DATABASE_URL")
     questions = []
     titles, extracts = wiki_trending_today(10)
+
     print('finished wikepedia')
 
+    reddit_post_lists =[]
+    reddit_text_lists =[]
+    for title in titles:
+        post, text, date = get_reddit(title)
+        reddit_post_lists.append(post)
+        reddit_text_lists.append(text)
+
+    print('finished reddit')
+
     for i in range(len(titles)):
-        questions.append(eval(generate_MC_question_with_answers(titles[i], extracts[i])))
-    print(questions)
+        questions.append(eval(generate_MC_question_with_answers(titles[i], extracts[i], reddit_post_lists[i], reddit_text_lists[i])))
+    print(questions[0])
 
     try:
         # Connect to the database
@@ -33,10 +43,6 @@ def insert_data():
     except Exception as e:
         print(f"Error inserting data: {e}")
     finally:
-        cursor.execute("SELECT * FROM questions;")
-        rows = cursor.fetchall()
-        for row in rows:
-            print(row)
 
         if cursor:
             cursor.close()
