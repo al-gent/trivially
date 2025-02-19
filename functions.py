@@ -44,16 +44,16 @@ def get_reddit(title, n=3):
     """
     load_dotenv()
 
-    reddit_client_id = os.getenv("reddit_client_id")
-    reddit_client_secret = os.getenv("reddit_client_secret")
-    reddit_user_agent = os.getenv("reddit_user_agent")
+    REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID")
+    REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
+    REDDIT_USER_AGENT = os.getenv("REDDIT_USER_AGENT")
 
 
-    print(len(reddit_user_agent), len(reddit_client_id), len(reddit_client_secret))
+    print(len(REDDIT_USER_AGENT), len(REDDIT_CLIENT_ID), len(REDDIT_CLIENT_SECRET))
     reddit = praw.Reddit(
-        client_id=reddit_client_id,
-        client_secret=reddit_client_secret,
-        user_agent=reddit_user_agent
+        client_id=REDDIT_CLIENT_ID,
+        client_secret=REDDIT_CLIENT_SECRET,
+        user_agent=REDDIT_USER_AGENT
     )
     headlines = []
     text = []
