@@ -21,7 +21,11 @@ def insert_data():
     print('finished reddit')
 
     for i in range(len(titles)):
-        questions.append(eval(generate_MC_question_with_answers(titles[i], extracts[i], reddit_post_lists[i], reddit_text_lists[i])))
+        try:
+            questions.append(eval(generate_MC_question_with_answers(titles[i], extracts[i], reddit_post_lists[i], reddit_text_lists[i])))
+        except SyntaxError as e:
+            print(f'Syntax Error, skipped question about {title}')
+            continue
     print(questions[0])
 
     try:
