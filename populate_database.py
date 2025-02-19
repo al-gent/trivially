@@ -28,6 +28,7 @@ def insert_data():
             continue
     print(questions[0])
 
+    
     try:
         # Connect to the database
         connection = psycopg2.connect(DATABASE_URL, sslmode="require")

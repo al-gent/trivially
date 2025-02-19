@@ -31,8 +31,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           wiki_key: ${{ secrets.wiki_key }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          reddit_client_id: ${{ secrets.REDDIT_CLIENT_ID }}
-          reddit_client_secret: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          reddit_user_agent: ${{ secrets.REDDIT_USER_AGENT }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
           
 
