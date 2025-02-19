@@ -49,7 +49,7 @@ def get_reddit(title, n=3):
     reddit_user_agent = os.getenv("reddit_user_agent")
 
 
-    print(len(reddit_user_agent), print(len(reddit_client_id), print*len(reddit_client_secret)))
+    print(len(reddit_user_agent), len(reddit_client_id), len(reddit_client_secret))
     reddit = praw.Reddit(
         client_id=reddit_client_id,
         client_secret=reddit_client_secret,
