@@ -29,8 +29,11 @@ def wiki_trending_today(n):
     extracts=[]
     for i in response['mostread']['articles'][:n]:
         if 'description' in i.keys():
-            titles.append(i['titles']['normalized'])
-            extracts.append(i['extract'])
+            title = i['titles']['normalized']
+            titles.append(title)
+            extract = i['extract']
+            extracts.append(extract)
+            print(title)
     return titles, extracts
 
 
