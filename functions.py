@@ -15,17 +15,17 @@ def wiki_trending_today(n):
     pacific = pytz.timezone('US/Pacific')
     today = datetime.datetime.now(pacific)
     date = today.strftime('%Y/%m/%d')
-    print(f"Date being used: {date}")  # e.g. "2023/08/02"
+    print(f"Date being used: {date}")
     language_code = 'en'
     load_dotenv()
     wiki_key = os.getenv("wiki_key")
     user_agent = '94gent@gmail.com'
     headers = {
-        'Authorization': wiki_key,
+        # 'Authorization': wiki_key,
         'User-Agent': user_agent
     }
-    base_url = 'https://api.wikimedia.org/feed/v1/wikipedia/'
-    url = base_url + language_code + '/featured/' + date
+    url = 'https://en.wikipedia.org/api/rest_v1/feed/featured/' + date
+
     response = requests.get(url, headers=headers)
     response = json.loads(response.text)
     titles= []
@@ -54,8 +54,6 @@ def get_reddit(title, n=3):
     REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
     REDDIT_USER_AGENT = os.getenv("REDDIT_USER_AGENT")
 
-
-    print(len(REDDIT_USER_AGENT), len(REDDIT_CLIENT_ID), len(REDDIT_CLIENT_SECRET))
     reddit = praw.Reddit(
         client_id=REDDIT_CLIENT_ID,
         client_secret=REDDIT_CLIENT_SECRET,
@@ -65,10 +63,9 @@ def get_reddit(title, n=3):
     text = []
     dates=[]
     subreddit = reddit.subreddit("all")
-    # Perform a search
-    search_query = title
+
     for submission in subreddit.search(
-        query=search_query,
+        query=title,
         sort="relevance",         # or "new", "relevance", etc.
         time_filter="week", # or "all", "month", "week", "day", "hour"
         limit=n
