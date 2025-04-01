@@ -149,7 +149,7 @@ export default function Home() {
       </main>
 
       <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <p className="text-sm text-gray-500">© 2025 Trivialy</p>
+        <p className="text-sm text-gray-500">© YOLO_SWAG_AI</p>
       </footer>
     </div>
   );
