@@ -101,10 +101,13 @@ export default function Home() {
                       return (
                         <li key={idx}>
                           <button
-                            className={`rounded-md border px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700
-                              ${isSelected ? "bg-blue-100 dark:bg-blue-600" : ""}
+                            className={`rounded-md border px-3 py-1
+                              hover:bg-gray-100 dark:hover:bg-gray-700
+                              text-white
+                              ${isSelected && currentQuestionStatus === "correct" && "bg-green-600"}
+                              ${isSelected && currentQuestionStatus === "incorrect" && "bg-red-600"}
+                              ${answer === q.correct_answer && currentQuestionStatus === "incorrect" && "bg-green-600"}
                             `}
-                            // Disable if this question has been answered
                             disabled={!!currentQuestionStatus}
                             onClick={() =>
                               handleAnswerClick(q.id, answer, q.correct_answer)
@@ -112,6 +115,7 @@ export default function Home() {
                           >
                             {answer}
                           </button>
+
                         </li>
                       );
                     })}
