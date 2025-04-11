@@ -103,7 +103,7 @@ export default function Home() {
                           <button
                             className={`rounded-md border px-3 py-1
                               hover:bg-gray-100 dark:hover:bg-gray-700
-                              text-white
+                              text-black dark:text-white
                               ${isSelected && currentQuestionStatus === "correct" && "bg-green-600"}
                               ${isSelected && currentQuestionStatus === "incorrect" && "bg-red-600"}
                               ${answer === q.correct_answer && currentQuestionStatus === "incorrect" && "bg-green-600"}
