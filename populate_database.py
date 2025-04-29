@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from functions import wiki_trending_today, generate_MC_question_with_answers, get_reddit
 
+
 def insert_data():
     load_dotenv()
     DATABASE_URL = os.getenv("DATABASE_URL")
@@ -28,7 +29,6 @@ def insert_data():
             continue
     print(questions[0])
 
-    
     try:
         # Connect to the database
         connection = psycopg2.connect(DATABASE_URL, sslmode="require")
@@ -53,6 +53,7 @@ def insert_data():
             cursor.close()
         if connection:
             connection.close()
+
 
 # Run the function
 if __name__ == "__main__":
