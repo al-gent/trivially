@@ -6,6 +6,7 @@ export default function Home({ sharedId }) {
   const [questions, setQuestions] = useState([]);
   const [answerStatus, setAnswerStatus] = useState({});
   const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [questionFeedback, setQuestionFeedback] = useState({});
 
   // Utility function to shuffle array
   function shuffleArray(array) {
@@ -13,13 +14,10 @@ export default function Home({ sharedId }) {
   }
 
   useEffect(() => {
-    console.log("Shared ID received:", sharedId); // Debug log
     
     const url = sharedId 
       ? `/api/questions?id=${sharedId}` 
       : "/api/questions";
-    
-    console.log("Fetching from URL:", url); // Debug log
 
     fetch(url)
       .then((res) => res.json())
@@ -53,6 +51,13 @@ export default function Home({ sharedId }) {
     }));
   };
 
+  const handleFeedback = (questionId, feedback) => {
+    setQuestionFeedback(prev => ({
+      ...prev,
+      [questionId]: feedback
+    }));
+  };
+
   // Function that handles the share button click event
   const handleShareClick = () => {
     const percentage = (correctAnswers / totalQuestions) * 100;
@@ -61,17 +66,12 @@ export default function Home({ sharedId }) {
     let shareScore;
     if (percentage === 100) {
       shareScore =  `🏆 Try Beating My Score! ${percentage}% - Doubt you can! 😳`;
-    // } else if (percentage >= 80) {
-    //   shareScore =  `🌟 Excellent! ${percentage}% - Almost perfect! 👏`;
     } else if (percentage >= 70) {
       shareScore =  `🫡 Giving you a shot today! ${percentage}% - Let's see what you got! 📚`;
-    // } else if (percentage >= 40) {
-    //   shareScore =  `🤔 Not bad! ${percentage}% - Room for improvement! 💪`;
     } else {
       shareScore =  `😢 Didn't do too hot. ${percentage}% - Don't lose! 🤷🏽‍♂️`;
     }
     shareScore = `${shareScore}\nPlay at https://trivially-gamma.vercel.app/${questionId}`;
-    // shareScore = shareScore + '\nPlay at https://trivially-gamma.vercel.app/${questionId}';
     // Copy the generated share URL to the user's clipboard
     navigator.clipboard.writeText(shareScore);
     // Show a confirmation message to the user that the link was copied
@@ -121,7 +121,7 @@ export default function Home({ sharedId }) {
               return (
                 <div
                   key={q.id}
-                  className="p-4 border rounded-md shadow-sm bg-white dark:bg-gray-800"
+                  className="p-4 border rounded-md shadow-sm bg-white dark:bg-gray-800 relative"
                 >
                   {/* Question Text */}
                   <p className="mb-2 font-medium text-lg">{q.question_text}</p>
@@ -148,7 +148,6 @@ export default function Home({ sharedId }) {
                           >
                             {answer}
                           </button>
-
                         </li>
                       );
                     })}
@@ -164,6 +163,30 @@ export default function Home({ sharedId }) {
                       )}
                     </div>
                   )}
+
+                  {/* Feedback Buttons */}
+                  <div className="flex justify-end gap-2 mt-4">
+                    <button
+                      onClick={() => handleFeedback(q.id, 'up')}
+                      className={`p-2 rounded-full transition-colors ${
+                        questionFeedback[q.id] === 'up' 
+                          ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300' 
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500'
+                      }`}
+                    >
+                      👍
+                    </button>
+                    <button
+                      onClick={() => handleFeedback(q.id, 'down')}
+                      className={`p-2 rounded-full transition-colors ${
+                        questionFeedback[q.id] === 'down' 
+                          ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300' 
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500'
+                      }`}
+                    >
+                      👎
+                    </button>
+                  </div>
                 </div>
               );
             })
