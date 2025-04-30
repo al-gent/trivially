@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { Pool } from "@neondatabase/serverless"; 
+import { Pool } from "@neondatabase/serverless";
+
 // or import { Pool } from "pg"; if you're using the pg library
 
 // Create a connection pool.
@@ -8,18 +9,35 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-export async function GET() {
+export async function GET(request) {
   const client = await pool.connect();
 
   try {
-    // Adjust the table name to match your schema/table
-    const query = `
+    // Get latest question ID if it is from a shared link
+    const url = new URL(request.url);
+    const shared = url.searchParams.get("id");
+    let query;
+    let rows;
+    if (shared) {
+      query = `
+      SELECT id, q, ca, ica1, ica2, ica3, category, difficulty, rating, subject
+      FROM questions
+      WHERE id <= $1
+      ORDER BY id DESC
+      LIMIT 10;
+    `;
+      const result = await client.query(query, [shared]);
+      rows = result.rows;
+    } else {
+      query = `
       SELECT id, q, ca, ica1, ica2, ica3, category, difficulty, rating, subject
       FROM questions
       ORDER BY id DESC
       LIMIT 10;
     `;
-    const { rows } = await client.query(query);
+      const result = await client.query(query);
+      rows = result.rows;
+    }
 
     // Transform each row into a consistent shape for the client
     const questions = rows.map((row) => ({

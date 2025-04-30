@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
-export default function Home() {
+export default function Home({ sharedId }) {
   const [questions, setQuestions] = useState([]);
   const [answerStatus, setAnswerStatus] = useState({});
   const [selectedAnswers, setSelectedAnswers] = useState({});
@@ -13,10 +13,18 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetch("/api/questions")
+    console.log("Shared ID received:", sharedId); // Debug log
+    
+    const url = sharedId 
+      ? `/api/questions?id=${sharedId}` 
+      : "/api/questions";
+    
+    console.log("Fetching from URL:", url); // Debug log
+
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
-        // Shuffle the answers for each question
+        console.log("Received data:", data); // Debug log
         const questionsWithShuffledAnswers = data.map((q) => ({
           ...q,
           answers: shuffleArray(q.answers),
@@ -24,7 +32,7 @@ export default function Home() {
         setQuestions(questionsWithShuffledAnswers);
       })
       .catch((error) => console.error("Error fetching questions:", error));
-  }, []);
+  }, [sharedId]); // Now dependent on sharedId prop
 
   const handleAnswerClick = (questionId, chosenAnswer, correctAnswer) => {
     // If the user has already answered this question, do nothing
@@ -43,6 +51,31 @@ export default function Home() {
       ...prev,
       [questionId]: chosenAnswer === correctAnswer ? "correct" : "incorrect",
     }));
+  };
+
+  // Function that handles the share button click event
+  const handleShareClick = () => {
+    const percentage = (correctAnswers / totalQuestions) * 100;
+    // Get the id of the first question
+    const questionId = questions[0]?.id;
+    let shareScore;
+    if (percentage === 100) {
+      shareScore =  `🏆 Try Beating My Score! ${percentage}% - Doubt you can! 😳`;
+    // } else if (percentage >= 80) {
+    //   shareScore =  `🌟 Excellent! ${percentage}% - Almost perfect! 👏`;
+    } else if (percentage >= 70) {
+      shareScore =  `🫡 Giving you a shot today! ${percentage}% - Let's see what you got! 📚`;
+    // } else if (percentage >= 40) {
+    //   shareScore =  `🤔 Not bad! ${percentage}% - Room for improvement! 💪`;
+    } else {
+      shareScore =  `😢 Didn't do too hot. ${percentage}% - Don't lose! 🤷🏽‍♂️`;
+    }
+    shareScore = `${shareScore}\nPlay at https://trivially-gamma.vercel.app/${questionId}`;
+    // shareScore = shareScore + '\nPlay at https://trivially-gamma.vercel.app/${questionId}';
+    // Copy the generated share URL to the user's clipboard
+    navigator.clipboard.writeText(shareScore);
+    // Show a confirmation message to the user that the link was copied
+    alert("Share score copied to clipboard!");
   };
 
   const totalQuestions = questions.length;
@@ -139,11 +172,19 @@ export default function Home() {
 
         {/* Score Display */}
         {allAnswered && (
-          <div className="mt-6 p-4 border rounded-md shadow-md bg-green-100 dark:bg-green-800">
-            <h3 className="text-lg font-semibold">Quiz Complete!</h3>
-            <p className="text-md">
-              Your score: {correctAnswers} / {totalQuestions}
-            </p>
+          <div className="flex justify-center items-center gap-4">
+            <div className="mt-6 p-4 border rounded-md shadow-md bg-green-100 dark:bg-green-800">
+              <h3 className="text-lg font-semibold">Quiz Complete!</h3>
+              <p className="text-md">
+                Your score: {correctAnswers} / {totalQuestions}
+              </p>
+            </div>
+            <button 
+              onClick={handleShareClick}
+              className="mt-6 p-4 border rounded-md shadow-md bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              <h3 className="text-lg font-semibold">Flex on your friends!</h3>
+            </button>
           </div>
         )}
       </main>
