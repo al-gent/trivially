@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
-export default function Home() {
+export default function Home({ sharedId }) {
   const [questions, setQuestions] = useState([]);
   const [answerStatus, setAnswerStatus] = useState({});
   const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [questionFeedback, setQuestionFeedback] = useState({});
 
   // Utility function to shuffle array
   function shuffleArray(array) {
@@ -13,10 +14,15 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetch("/api/questions")
+    
+    const url = sharedId 
+      ? `/api/questions?id=${sharedId}` 
+      : "/api/questions";
+
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
-        // Shuffle the answers for each question
+        console.log("Received data:", data); // Debug log
         const questionsWithShuffledAnswers = data.map((q) => ({
           ...q,
           answers: shuffleArray(q.answers),
@@ -24,7 +30,7 @@ export default function Home() {
         setQuestions(questionsWithShuffledAnswers);
       })
       .catch((error) => console.error("Error fetching questions:", error));
-  }, []);
+  }, [sharedId]); // Now dependent on sharedId prop
 
   const handleAnswerClick = (questionId, chosenAnswer, correctAnswer) => {
     // If the user has already answered this question, do nothing
@@ -43,6 +49,33 @@ export default function Home() {
       ...prev,
       [questionId]: chosenAnswer === correctAnswer ? "correct" : "incorrect",
     }));
+  };
+
+  const handleFeedback = (questionId, feedback) => {
+    setQuestionFeedback(prev => ({
+      ...prev,
+      [questionId]: feedback
+    }));
+  };
+
+  // Function that handles the share button click event
+  const handleShareClick = () => {
+    const percentage = (correctAnswers / totalQuestions) * 100;
+    // Get the id of the first question
+    const questionId = questions[0]?.id;
+    let shareScore;
+    if (percentage === 100) {
+      shareScore =  `🏆 Try Beating My Score! ${percentage}% - Doubt you can! 😳`;
+    } else if (percentage >= 70) {
+      shareScore =  `🫡 Giving you a shot today! ${percentage}% - Let's see what you got! 📚`;
+    } else {
+      shareScore =  `😢 Didn't do too hot. ${percentage}% - Don't lose! 🤷🏽‍♂️`;
+    }
+    shareScore = `${shareScore}\nPlay at https://trivially-gamma.vercel.app/${questionId}`;
+    // Copy the generated share URL to the user's clipboard
+    navigator.clipboard.writeText(shareScore);
+    // Show a confirmation message to the user that the link was copied
+    alert("Share score copied to clipboard!");
   };
 
   const totalQuestions = questions.length;
@@ -88,7 +121,7 @@ export default function Home() {
               return (
                 <div
                   key={q.id}
-                  className="p-4 border rounded-md shadow-sm bg-white dark:bg-gray-800"
+                  className="p-4 border rounded-md shadow-sm bg-white dark:bg-gray-800 relative"
                 >
                   {/* Question Text */}
                   <p className="mb-2 font-medium text-lg">{q.question_text}</p>
@@ -103,7 +136,7 @@ export default function Home() {
                           <button
                             className={`rounded-md border px-3 py-1
                               hover:bg-gray-100 dark:hover:bg-gray-700
-                              text-white
+                              text-black dark:text-white
                               ${isSelected && currentQuestionStatus === "correct" && "bg-green-600"}
                               ${isSelected && currentQuestionStatus === "incorrect" && "bg-red-600"}
                               ${answer === q.correct_answer && currentQuestionStatus === "incorrect" && "bg-green-600"}
@@ -115,7 +148,6 @@ export default function Home() {
                           >
                             {answer}
                           </button>
-
                         </li>
                       );
                     })}
@@ -131,6 +163,30 @@ export default function Home() {
                       )}
                     </div>
                   )}
+
+                  {/* Feedback Buttons */}
+                  <div className="flex justify-end gap-2 mt-4">
+                    <button
+                      onClick={() => handleFeedback(q.id, 'up')}
+                      className={`p-2 rounded-full transition-colors ${
+                        questionFeedback[q.id] === 'up' 
+                          ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300' 
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500'
+                      }`}
+                    >
+                      👍
+                    </button>
+                    <button
+                      onClick={() => handleFeedback(q.id, 'down')}
+                      className={`p-2 rounded-full transition-colors ${
+                        questionFeedback[q.id] === 'down' 
+                          ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300' 
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500'
+                      }`}
+                    >
+                      👎
+                    </button>
+                  </div>
                 </div>
               );
             })
@@ -139,11 +195,19 @@ export default function Home() {
 
         {/* Score Display */}
         {allAnswered && (
-          <div className="mt-6 p-4 border rounded-md shadow-md bg-green-100 dark:bg-green-800">
-            <h3 className="text-lg font-semibold">Quiz Complete!</h3>
-            <p className="text-md">
-              Your score: {correctAnswers} / {totalQuestions}
-            </p>
+          <div className="flex justify-center items-center gap-4">
+            <div className="mt-6 p-4 border rounded-md shadow-md bg-green-100 dark:bg-green-800">
+              <h3 className="text-lg font-semibold">Quiz Complete!</h3>
+              <p className="text-md">
+                Your score: {correctAnswers} / {totalQuestions}
+              </p>
+            </div>
+            <button 
+              onClick={handleShareClick}
+              className="mt-6 p-4 border rounded-md shadow-md bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              <h3 className="text-lg font-semibold">Flex on your friends!</h3>
+            </button>
           </div>
         )}
       </main>
