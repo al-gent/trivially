@@ -272,11 +272,10 @@ def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_te
         ]
     )
 
-
-
-
     # Extract and store the generated question
     return completion.choices[0].message.content
+
+
 def extract_topics_from_downloaded_file(n = 20):
     # Step 1: Find latest CSV file in ./downloads
     download_dir = os.path.join(os.getcwd(), "downloads")
