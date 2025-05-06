@@ -1,38 +1,52 @@
 import { NextResponse } from "next/server";
-import { Pool } from "@neondatabase/serverless"; 
-// or import { Pool } from "pg"; if you're using the pg library
+import { Pool } from "@neondatabase/serverless";
 
-// Create a connection pool.
-// Make sure NEON_DATABASE_URL is set in your environment variables.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-export async function GET() {
+export async function GET(request) {
   const client = await pool.connect();
 
   try {
-    // Adjust the table name to match your schema/table
-    const query = `
-      SELECT id, q, ca, ica1, ica2, ica3, category, difficulty, rating, subject
+    // Get latest question ID if it is from a shared link
+    const url = new URL(request.url);
+    const shared = url.searchParams.get("id");
+    let query;
+    let rows;
+    if (shared) {
+      query = `
+      SELECT id, q, ca, ica1, ica2, ica3
+      FROM questions
+      WHERE id <= $1
+      ORDER BY id DESC
+      LIMIT 10;
+    `;
+      const result = await client.query(query, [shared]);
+      rows = result.rows;
+    } else {
+      query = `
+      SELECT id, q, ca, ica1, ica2, ica3
       FROM questions
       ORDER BY id DESC
       LIMIT 10;
     `;
-    const { rows } = await client.query(query);
+      const result = await client.query(query);
+      rows = result.rows;
+    }
 
-    // Transform each row into a consistent shape for the client
+    // In your GET route, modify the mapping:
     const questions = rows.map((row) => ({
       id: row.id,
       question_text: row.q,
       correct_answer: row.ca,
-      // Build an array of possible answers
-      // (Optionally, you can shuffle them to avoid revealing which is correct)
-      answers: [row.ca, row.ica1, row.ica2, row.ica3],
-      category: row.category,
-      difficulty: row.difficulty,
-      rating: row.rating,
-      subject: row.subject,
+      // Include both the answer text and its original identifier
+      answers: [
+        { text: row.ca, type: 'ca' },
+        { text: row.ica1, type: 'ica1' },
+        { text: row.ica2, type: 'ica2' },
+        { text: row.ica3, type: 'ica3' }
+      ],
     }));
 
     return NextResponse.json(questions);

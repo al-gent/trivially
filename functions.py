@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 import pytz
 import praw
-
+import pandas as pd
 
 def wiki_trending_today(n):
     """Grab n trending wikipedia articles from today
@@ -40,6 +40,7 @@ def wiki_trending_today(n):
     return titles, extracts
 
 
+ 
 def get_reddit(title, n=3):
     """Finds relevant reddit posts about a given title.
     Input: title -> str
@@ -312,3 +313,102 @@ def evaluate_question_balance(question, correct_answer, incorrect_answers, subje
     )
 
     return completion.choices[0].message.content
+
+def extract_topics_from_downloaded_file(n = 20):
+    # Step 1: Find latest CSV file in ./downloads
+    download_dir = os.path.join(os.getcwd(), "downloads")
+    csv_files = [f for f in os.listdir(download_dir) if f.endswith(".csv")]
+
+    if not csv_files:
+        raise FileNotFoundError("No CSV files found in downloads folder.")
+
+    # Sort by modification time, get the latest one
+    latest_file = max(
+        [os.path.join(download_dir, f) for f in csv_files],
+        key=os.path.getmtime
+    )
+
+    print("📥 Loading file:", os.path.basename(latest_file))
+    df = pd.read_csv(latest_file)
+    topics = {df.Trends[i]: df['Search volume'][i] for i in range(n)}
+    return topics
+
+def choose_best_topics(topics, n=10):
+    client = OpenAI()
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "user",
+                "content":
+                f"""You are deciding which content is good for a trivia website.
+                The following are trending google searches paired with the search volume
+                Your job is to return a rating from 0 and 10 for each topic. 
+                a score of 0 means that it should not be used for a trivia question 
+                for example violence or weapons, or boring political or business topics
+                a score of 10 means it is a good candidate for a trivia question, 
+                if it has a high search volume, it is probably a good trivia question
+                theyre going to be plugged in to python so it should be a dictionary
+                where they keys are the searches as strings and the values are your ratings as ints.
+                Respond with only the dictionary, with no additional explanation or text or newlines.
+                {topics}"""
+            }
+        ])
+    search_ratings = eval(completion.choices[0].message.content)
+    chosen_topics = [key for key, _ in sorted(search_ratings.items(), key=lambda item: item[1], reverse=True)[:n]]
+    return chosen_topics
+
+
+def google_pipeline_question_gen(topics):
+    client = OpenAI()
+    results=[]
+    for topic in topics:
+        print(topic)
+        find_why_trending = client.chat.completions.create(
+            model="gpt-4o-mini-search-preview-2025-03-11",
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"why is {topic}trending on google search? "
+                }
+            ])
+
+        why_trending = (find_why_trending.choices[0].message.content)
+        print(why_trending)
+
+        make_three_questions = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "user",
+                "content": f"""Come up with 3 trivia questions about the following text - include the answer, and the link to the article.
+                Do not include any formatting or any text beyond the question answer pairs
+                {why_trending}."""
+            }
+        ])
+        three_questions = make_three_questions.choices[0].message.content
+        print(three_questions)
+        make_question_and_answers = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """Pick one of the following questions and turn it into an engaging multiple-choice trivia question.
+                Choose the question that is the most fun and interesting, and is a moderate level of difficulty.
+                Think of incorrect options that could reasonably answer the question, but are verifyably incorrect.
+                Respond with only the following array of strings, with no additional explanation or text.
+                Do not include markdown formatting or any text outside of the list. Do not add line breaks between entries.
+                [   "<question>", "<The correct answer>", "<Incorrect option 1>", "<Incorrect option 2>", "<Incorrect option 3>" "<link>"]
+    . 
+                All values must be enclosed in double quotes and formatted as strings."""
+            },
+                {
+                "role": "user",
+                "content": f"""
+                {three_questions}."""
+            }
+        ])
+
+        results.append(make_question_and_answers.choices[0].message.content)
+    return results
+
