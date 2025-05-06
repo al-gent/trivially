@@ -1,14 +1,15 @@
 import psycopg2
 import os
 from dotenv import load_dotenv
-from functions import wiki_trending_today, generate_MC_question_with_answers, get_reddit, choose_best_topics
+from functions import wiki_trending_today, generate_MC_question_with_answers, get_reddit, choose_best_topics, generate_MC_question_with_answers_v4
+
 
 def insert_data():
     load_dotenv()
     DATABASE_URL = os.getenv("DATABASE_URL")
     questions = []
     titles, extracts = wiki_trending_today(30)
-    title_extract_d = {title: extract for title, extract in zip(titles,extracts)}
+    title_extract_d = {title: extract for title, extract in zip(titles, extracts)}
     print('finished wikepedia')
 
     selected_titles = choose_best_topics(titles)
@@ -23,15 +24,14 @@ def insert_data():
 
     print('finished reddit')
 
-    for i,t in enumerate(selected_titles):
+    for i, t in enumerate(selected_titles):
         try:
-            questions.append(eval(generate_MC_question_with_answers(t, title_extract_d[t], reddit_post_lists[i], reddit_text_lists[i])))
+            questions.append(eval(generate_MC_question_with_answers_v4(t, title_extract_d[t], reddit_post_lists[i], reddit_text_lists[i])))
         except SyntaxError as e:
-            print(f'Syntax Error, skipped question about {title}')
+            print(f'Syntax Error, skipped question about {title}.\n {e}')
             continue
     print(questions[0])
 
-    
     try:
         # Connect to the database
         connection = psycopg2.connect(DATABASE_URL, sslmode="require")
@@ -56,6 +56,7 @@ def insert_data():
             cursor.close()
         if connection:
             connection.close()
+
 
 # Run the function
 if __name__ == "__main__":

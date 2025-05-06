@@ -97,7 +97,7 @@ def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts
                     "<question difficulty (1-10)>",
                     "<question rating (1-10)>",
                     "<subject of question>" ]
-    . 
+    .
                 All values must be enclosed in double quotes and formatted as strings."""
             },
             {
@@ -112,6 +112,169 @@ def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts
 
     # Extract and store the generated question
     return completion.choices[0].message.content
+
+
+def generate_MC_question_with_answers_v2(title, extract, reddit_posts, reddit_texts):
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are a trivia master that values accuracy. Create a fun and engaging multiple-choice trivia question. 
+                Respond with only the following array of strings, with no additional explanation or text.
+                Do not include markdown formatting or any text outside of the list. Do not add line breaks between entries. Do not use any emojis.
+                [   "<question>",
+                    "<The correct answer>",
+                    "<Incorrect option 1>",
+                    "<Incorrect option 2>",
+                    "<Incorrect option 3>",
+                    "<question category>",
+                    "<question difficulty (1-10)>",
+                    "<question rating (1-10)>",
+                    "<subject of question>" ]
+    .
+                All values must be enclosed in double quotes and formatted as strings."""
+            },
+            {
+                "role": "user",
+                "content": f"""Create a multiple-choice trivia question about '{title}'.
+                Use this context as background information: {extract}.
+                Use these reddit posts to understand why this topic is relevant right now.
+                {[(post, text) for (post, text) in zip(reddit_posts, reddit_texts)]}
+                Allude to why this topic is relevant in the question.
+                Try to have the main topic or subject in the question and not the asnwer.
+                When possible try to avoid using the words or phrases in the answer in teh question as well."""
+            }
+        ])
+
+    # Extract and store the generated question
+    return completion.choices[0].message.content
+
+
+def generate_MC_question_with_answers_v3(title, extract, reddit_posts, reddit_texts):
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are a highly precise trivia master that creates unique, insightful multiple-choice questions rooted in timely context. 
+        Return only a JSON-style list of strings in this format:
+        [
+            "<question>",
+            "<correct answer>",
+            "<incorrect option 1>",
+            "<incorrect option 2>",
+            "<incorrect option 3>",
+            "<category>",
+            "<difficulty (1-10)>",
+            "<rating (1-10)>",
+            "<subject>"
+        ]
+        - The question must be specific, interesting, and not just biographical or headline-based.
+        - The question should reference a unique or lesser-known fact or angle about the topic, especially one that connects to current relevance.
+        - Do not use the correct answer's exact wording in the question unless unavoidable.
+        - Use reasoning, consequence, or impact when possible (e.g., "What policy introduced by X had this effect?" or "Which controversial stance did X take in 2025?")
+        - Never repeat the subject or answer in the question if it spoils it.
+        - Do not include any text, explanation, or formatting outside the list of strings.
+        """
+                },
+                {
+                    "role": "user",
+                    "content": f"""Topic: '{title}'.
+                    Use this background context: {extract}.
+                    Incorporate insight from these Reddit discussions to understand current public interest and framing:
+                    {[(post, text) for (post, text) in zip(reddit_posts, reddit_texts)]}
+                    Allude to why this topic is relevant in the question.
+                    Try to have the main topic or subject in the question and not the asnwer.
+                    When possible try to avoid using the words or phrases in the answer in teh question as well."""
+                }
+            ])
+
+
+    # Extract and store the generated question
+    return completion.choices[0].message.content
+
+
+def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_texts):
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """
+                    You are a trivia master who writes fun, clever, and surprising multiple-choice questions.
+
+                    Your goals:
+                    - Make each question a real question (end with a question mark).
+                    - The subject (e.g. 'Pope Francis', '2025 Canadian election') must appear in the question for clarity.
+                    - Do NOT give away the answer in the question or lead directly to it.
+                    - Focus on ironic, unusual, precedent-breaking, or fun outcomes—not summaries or job titles.
+                    - Keep answers short (max 6 words).
+                    - The correct answer should feel surprising but true.
+                    - Incorrect answers must be:
+                    - Plausible but clearly false
+                    - Related to the topic (avoid nonsense or fantasy)
+                    - Interesting or funny in a grounded way (no aliens, magic, etc.)
+
+                    Only respond with the following array:
+                    [
+                    "<question>",
+                    "<Correct answer>",
+                    "<Incorrect option 1>",
+                    "<Incorrect option 2>",
+                    "<Incorrect option 3>",
+                    "<question category>",
+                    "<question difficulty (1-10)>",
+                    "<question rating (1-10)>",
+                    "<subject>"
+                    ]
+
+                    Do NOT include line breaks, markdown formatting, or any text outside this array.
+
+                    Examples:
+
+                    Bad: "Who was Pope in 2025?"  
+                    Good: "In 2025, what centuries-old ritual did Pope Francis skip during Easter?"
+
+                    Bad: "Who invented the microwave?"  
+                    Good: "Which kitchen device was inspired when radar melted a scientist's candy bar?"
+
+                    Bad: "What was the original purpose of bubble wrap?"  
+                    Good: "Which product began as a failed attempt to make textured wallpaper?"
+                """
+            },
+            {
+                "role": "user",
+                "content": f"""
+                    Create a multiple-choice trivia question about '{title}' using this background: {extract}
+
+                    Use these Reddit posts to understand why the topic is timely, controversial, or emotionally charged:
+                    {[(post, text) for (post, text) in zip(reddit_posts, reddit_texts)]}
+
+                    Instructions:
+                    - Highlight something ironic, surprising, controversial, or precedent-breaking.
+                    - Don't summarize what happened—reveal something interesting *about* it.
+                    - Keep the subject in the question for clarity.
+                    - All answers must be under 6 words.
+                    - Ensure the question ends with a question mark.
+                    - Ensure wrong answers are plausible but false.
+                    - Do not use fantasy, aliens, magic, or absurdity unless the subject directly involves it.
+
+                    Only return the specified array format, with no additional commentary.
+                """
+            }
+        ]
+    )
+
+    # Extract and store the generated question
+    return completion.choices[0].message.content
+
 
 def extract_topics_from_downloaded_file(n = 20):
     # Step 1: Find latest CSV file in ./downloads
