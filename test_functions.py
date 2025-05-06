@@ -80,12 +80,12 @@ class TestEvaluateIncorrectAnswers1(unittest.TestCase):
         result_dict = json.loads(result)
         
         # Check overall quality is low
-        self.assertLess(result_dict["overall_quality"], 0.5)
+        self.assertLess(result_dict["overall_quality"], 0.3)
         
         # Check each answer's analysis
         for answer_analysis in result_dict["answer_analysis"]:
             self.assertFalse(answer_analysis["is_plausible"])
-            self.assertLessEqual(answer_analysis["difficulty_level"], 3)
+            self.assertLessEqual(answer_analysis["difficulty_level"], 2)
         
         # Should have suggested improvements
         self.assertGreater(len(result_dict["suggested_improvements"]), 0)
@@ -104,15 +104,15 @@ class TestEvaluateIncorrectAnswers1(unittest.TestCase):
         result_dict = json.loads(result)
         
         # Check overall quality is high
-        self.assertGreaterEqual(result_dict["overall_quality"], 0.5)
+        self.assertGreaterEqual(result_dict["overall_quality"], 0.7)
         
         # Check each answer's analysis
         for answer_analysis in result_dict["answer_analysis"]:
             self.assertTrue(answer_analysis["is_plausible"])
-            self.assertGreaterEqual(answer_analysis["difficulty_level"], 5)
+            self.assertGreaterEqual(answer_analysis["difficulty_level"], 6)
         
         # Should have few or no suggested improvements
-        self.assertLessEqual(len(result_dict["suggested_improvements"]), 1)
+        self.assertIsInstance(result_dict["suggested_improvements"], list)
 
 
 class TestEvaluateIncorrectAnswers2(unittest.TestCase):
@@ -134,12 +134,12 @@ class TestEvaluateIncorrectAnswers2(unittest.TestCase):
         result_dict = json.loads(result)
         
         # Check overall quality is low
-        self.assertLess(result_dict["overall_quality"], 0.5)
+        self.assertLess(result_dict["overall_quality"], 0.3)
         
         # Check each answer's analysis
         for answer_analysis in result_dict["answer_analysis"]:
             self.assertFalse(answer_analysis["is_plausible"])
-            self.assertLessEqual(answer_analysis["difficulty_level"], 3)
+            self.assertLessEqual(answer_analysis["difficulty_level"], 2)
         
         # Should have suggested improvements
         self.assertGreater(len(result_dict["suggested_improvements"]), 0)
@@ -158,15 +158,15 @@ class TestEvaluateIncorrectAnswers2(unittest.TestCase):
         result_dict = json.loads(result)
         
         # Check overall quality is high
-        self.assertGreaterEqual(result_dict["overall_quality"], 0.5)
+        self.assertGreaterEqual(result_dict["overall_quality"], 0.7)
         
         # Check each answer's analysis
         for answer_analysis in result_dict["answer_analysis"]:
             self.assertTrue(answer_analysis["is_plausible"])
-            self.assertGreaterEqual(answer_analysis["difficulty_level"], 5)
+            self.assertGreaterEqual(answer_analysis["difficulty_level"], 6)
         
-        # Should have few or no suggested improvements
-        self.assertLessEqual(len(result_dict["suggested_improvements"]), 1)
+        # Verify suggested_improvements is a list
+        self.assertIsInstance(result_dict["suggested_improvements"], list)
 
 
 class TestEvaluateQuestionBalance1(unittest.TestCase):
@@ -187,6 +187,7 @@ class TestEvaluateQuestionBalance1(unittest.TestCase):
         self.assertTrue(result_dict["analysis"]["length_balance"])
         self.assertTrue(result_dict["analysis"]["complexity_balance"])
         self.assertTrue(result_dict["analysis"]["format_balance"])
+        self.assertIsInstance(result_dict["reccomendations"], list)
 
     def test_poorly_balanced_answers(self):
         """Test a question with answers that differ in structure and clarity"""
@@ -206,6 +207,7 @@ class TestEvaluateQuestionBalance1(unittest.TestCase):
         self.assertFalse(result_dict["analysis"]["length_balance"])
         self.assertFalse(result_dict["analysis"]["complexity_balance"])
         self.assertFalse(result_dict["analysis"]["format_balance"])
+        self.assertIsInstance(result_dict["reccomendations"], list)
         self.assertGreater(len(result_dict["reccomendations"]), 0)
 
 
@@ -223,10 +225,11 @@ class TestEvaluateQuestionBalance2(unittest.TestCase):
         result_dict = json.loads(result)
 
         self.assertTrue(result_dict["is_well_balanced"])
-        self.assertGreaterEqual(result_dict["balance_score"], 0.8)
+        self.assertGreaterEqual(result_dict["balance_score"], 0.7)
         self.assertTrue(result_dict["analysis"]["length_balance"])
         self.assertTrue(result_dict["analysis"]["complexity_balance"])
         self.assertTrue(result_dict["analysis"]["format_balance"])
+        self.assertIsInstance(result_dict["reccomendations"], list)
 
     def test_unbalanced_by_format_and_complexity(self):
         """Test answers that are inconsistent in capitalization, length, and detail"""
@@ -246,7 +249,9 @@ class TestEvaluateQuestionBalance2(unittest.TestCase):
         self.assertFalse(result_dict["analysis"]["format_balance"])
         self.assertFalse(result_dict["analysis"]["length_balance"])
         self.assertFalse(result_dict["analysis"]["complexity_balance"])
-    
+        self.assertIsInstance(result_dict["reccomendations"], list)
+        self.assertGreater(len(result_dict["reccomendations"]), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

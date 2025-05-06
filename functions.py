@@ -117,7 +117,7 @@ def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts
 
 def verify_accuracy(question, correct_answer, context, subject):
     """
-    Checks the factual accuracy of the question andcorrect answer.
+    Checks the factual accuracy of the question and the correct answer.
 
     The quality of incorrect answers are checked in a evaluate_incorrect_answers. 
     The balance of both correct and incorrect answers is checked in evaluate_question_balance.
@@ -172,7 +172,19 @@ def verify_accuracy(question, correct_answer, context, subject):
         ]
     )
     
-    return completion.choices[0].message.content
+    result = completion.choices[0].message.content
+    result_dict = json.loads(result)
+    
+    if result_dict["is_factual"] and result_dict["confidence_score"] >= 0.8:
+        print(f"✅ Accuracy Test PASSED for question about {subject} with confidence score {result_dict['confidence_score']}")
+    else:
+        print(f"❌ Accuracy Test FAILED for question about {subject} with confidence score {result_dict['confidence_score']}")
+        if result_dict["suggested_corrections"]:
+            print("   Suggested Corrections:")
+            for correction in result_dict["suggested_corrections"]:
+                print(f"   - {correction}")
+    
+    return result
 
 
 def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subject):
@@ -202,18 +214,43 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
                 You are a trivia question quality expert. Your task is to evaluate the quality of incorrect answers in a multiple-choice question.
                 Respond with a JSON object containing:
                 {
-                    'overall_quality': number (0-1),
-                    'answer_analysis': 
+                    "overall_quality": number (0-1),
+                    "answer_analysis": 
                     [
                         {
-                            'answer': string,
-                            'is_plausible': boolean,
-                            'difficulty_level': number (1-10),
-                            'explanation': string
+                            "answer": string,
+                            "is_plausible": boolean,
+                            "difficulty_level": number (1-10),
+                            "explanation": string
                         }
                     ],
-                    'suggested_improvements': array of strings (optional)
+                    "suggested_improvements": array of strings
                 }
+
+                IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                2. For date-based questions:
+                   - Answers within 1 month of the correct date are ALWAYS plausible
+                   - Answers within 1 year of the correct date are ALWAYS plausible
+                   - Answers within 5 years of the correct date are USUALLY plausible
+                   - Answers more than 5 years away are NOT plausible
+                3. For non-date questions, an answer is plausible if:
+                   - It's close to the correct answer (e.g., a different city, a different person)
+                   - It's a reasonable mistake someone might make
+                   - It's in the same category or type as the correct answer
+                4. An answer is not plausible if:
+                   - It's obviously wrong (e.g. a different planet, a different century)
+                   - The sentiment of the answer doesn't match the sentiment of the question
+                   - It's completely unrelated to the subject matter
+                5. For obviously not plausible answers:
+                   - Set is_plausible to false
+                   - Set difficulty_level to 2 or lower
+                6. For plausible answers:
+                   - Set is_plausible to true
+                   - Set difficulty_level to 6 or higher
+                7. Always include the suggested_improvements array, even if empty
+                8. Set overall_quality to 0.7 or higher only if all answers are plausible
+                9. Set overall_quality to 0.3 or lower if any answers are not plausible
                 """
             },
             {
@@ -228,24 +265,30 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
 
                  Are the incorrect answers plausible and challenging? Would they make the question too easy or too hard?
                  
-                 IMPORTANT RULES:
-                1. Use double quotes for all property names and string values in the JSON response.
-                2. An answer is plausible if:
-                   - It's close to the correct answer (e.g., a different city, a different person)
-                   - It's a reasonable mistake someone might make
-                   - For dates, answers within a few days to 5 years are plausible.
-                3. An answer is not plausible if:
-                    - It's obviously wrong (e.g. a different planet, a different century, etc.)
-                    - The sentiment of the answer doesn't match the sentiment of the question (e.g. a question about a tragedy is answered with a joke)
-                4. For obviously not plausible answers, set difficulty_level to 2 or lower.
-                5. For very plausible answers, set difficulty_level to 6 or higher, and make sure there is only one suggested_improvements.
-                6. Always include the suggested_improvements key, even if it is just an empty array [] for no suggestions.
+                 For date-based questions, remember:
+                 - Answers within 1 month or 1 year of the correct date are ALWAYS plausible
+                 - Answers within 5 years are USUALLY plausible
+                 - Answers more than 5 years away are NOT plausible
+                 
+                 Provide your assessment using the JSON format specified above.
                  """
             }
         ]
     )
 
-    return completion.choices[0].message.content
+    result = completion.choices[0].message.content
+    result_dict = json.loads(result)
+    
+    if result_dict["overall_quality"] >= 0.7:
+        print(f"✅ Plausibility Test PASSED for question about {subject} with quality score {result_dict['overall_quality']}")
+    else:
+        print(f"❌ Plausibility Test FAILED for question about {subject} with quality score {result_dict['overall_quality']}")
+        if result_dict["suggested_improvements"]:
+            print("   Suggested Improvements:")
+            for improvement in result_dict["suggested_improvements"]:
+                print(f"   - {improvement}")
+
+    return result
 
 
 def evaluate_question_balance(question, correct_answer, incorrect_answers, subject):
@@ -275,16 +318,25 @@ def evaluate_question_balance(question, correct_answer, incorrect_answers, subje
                 You are a trivia question balance expert. Your task is to ensure that both the correct and incorrect answers are well balanced in terms of length, complexity, and format.
                 Respond with a JSON object containing:
                 {
-                    'is_well_balanced': boolean,
-                    'balance_score': number (0-1),
-                    'analysis': 
+                    "is_well_balanced": boolean,
+                    "balance_score": number (0-1),
+                    "analysis": 
                     {
-                        'length_balance': boolean, // Are all answers similar in length?
-                        'complexity_balance': boolean, // Are all answers similar in complexity?
-                        'format_balance': boolean // Are all answers similar in format (e.g. standardized dates, capitalization of names and locations, etc.)
+                        "length_balance": boolean,
+                        "complexity_balance": boolean,
+                        "format_balance": boolean
                     },
-                    'reccomendations': array of strings (optional)
+                    "reccomendations": array of strings
                 }
+
+                IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                2. Length balance: All answers should be within 20% of each other's length.
+                3. Complexity balance: All answers should have similar levels of detail and complexity.
+                4. Format balance: All answers should follow the same format (e.g., same capitalization, same level of formality).
+                5. Set balance_score to 0.7 or higher only if all three balance criteria are met.
+                6. Set balance_score to 0.5 or lower if any balance criteria are not met.
+                7. Always include the reccomendations array, even if empty.
                 """
             },
             {
@@ -297,22 +349,30 @@ def evaluate_question_balance(question, correct_answer, incorrect_answers, subje
                 Incorrect Answers: {incorrect_answers}
                 Subject: {subject}
 
-                Focus only on the structural aspects:
-                1. Are all answers similar in length?
-                2. Are all answers similar in complexity?
-                3. Are all answers in the same format (e.g. standardized dates, capitalization of names and locations, etc.)?
-                The goal is for questions to be similar in structure, but not identical.
-                
-                IMPORTANT RULES:
-                1. Use double quotes for all property names and string values in the JSON response.
-                ...
+                Focus on these specific aspects:
+                1. Length balance: Are all answers within 20% of each other's length?
+                2. Complexity balance: Do all answers have similar levels of detail and complexity?
+                3. Format balance: Do all answers follow the same format (e.g., same capitalization, same level of formality)?
 
+                Provide your assessment using the JSON format specified above.
                 """
             }
         ]
     )
 
-    return completion.choices[0].message.content
+    result = completion.choices[0].message.content
+    result_dict = json.loads(result)
+    
+    if result_dict["balance_score"] >= 0.7:
+        print(f"✅ Balance Test PASSED for question about {subject} with balance score {result_dict['balance_score']}")
+    else:
+        print(f"❌ Balance Test FAILED for question about {subject} with balance score {result_dict['balance_score']}")
+        if result_dict["reccomendations"]:
+            print("   Recommendations:")
+            for recommendation in result_dict["reccomendations"]:
+                print(f"   - {recommendation}")
+
+    return result
 
 def extract_topics_from_downloaded_file(n = 20):
     # Step 1: Find latest CSV file in ./downloads
