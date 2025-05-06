@@ -40,8 +40,6 @@ def wiki_trending_today(n):
     return titles, extracts
 
 
-
-
 def get_reddit(title, n=3):
     """Finds relevant reddit posts about a given title.
     Input: title -> str
@@ -77,7 +75,6 @@ def get_reddit(title, n=3):
         text.append(submission.selftext)
         dates.append(post_date.strftime("%Y-%m-%d %H:%M"))
     return (headlines, text, dates)
-
 
 
 def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts):
@@ -116,3 +113,202 @@ def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts
     # Extract and store the generated question
     return completion.choices[0].message.content
 
+
+def verify_accuracy(question, correct_answer, context, subject):
+    """
+    Checks the factual accuracy of the question andcorrect answer.
+
+    The quality of incorrect answers are checked in a evaluate_incorrect_answers. 
+    The balance of both correct and incorrect answers is checked in evaluate_question_balance.
+    
+    Overall process: The correct answer is factual, the incorrect answers are not too obviously wrong, and 
+    all the questions are balanced in length and complexity.
+    Functions used:
+    - verify_accuracy
+    - evaluate_incorrect_answers
+    - evaluate_question_balance
+    """
+    load_dotenv()
+    client = OpenAI()
+    
+    completion = client.chat.completions.create(
+        model = "gpt-4",
+        messages = [
+            {
+                "role":"system",
+                "content": 
+                """
+                You are a fact-checking expert. Your task is to verify if a trivia question and it's answer are factually accurate.
+                Respond with a JSON object containing:
+                { 
+                    "is_factual": boolean,
+                    "confidence_score": number (0-1),
+                    "explanation": string,
+                    "suggested_corrections": array of strings
+                }
+
+                IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                2. Always include the "suggested_corrections" array, even if empty.
+                3. For known incorrect answers, set confidence_score to 0.3 or lower.
+                4. For factual questions, set confidence_score to 0.8 or higher.
+                """
+            },
+            {
+                "role":"user",
+                "content": 
+                f"""
+                Verify the following trivia question:
+                Subject: {subject}
+                Question: {question}
+                Correct Answer: {correct_answer}
+                Context: 
+                {context}
+
+                Is this question and answer factually accurate? Provide your assessment using the JSON format specified above.
+                """
+            }
+        ]
+    )
+    
+    return completion.choices[0].message.content
+
+
+def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subject):
+    """
+    Checks the quality of incorrect answers so that they are not too easy or obvious. The correct_answer is only used as context for the prompt. 
+    
+    The accuracy of the question and correct answer is checked in verify_accuracy. 
+    The balance of both correct and incorrect answers is checked in evaluate_question_balance.
+    
+    Overall process: The correct answer is factual, the incorrect answers are not too obviously wrong, and 
+    all the questions are balanced in length and complexity.
+    Functions used:
+    - verify_accuracy
+    - evaluate_incorrect_answers
+    - evaluate_question_balance
+    """
+    load_dotenv()
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
+        model = 'gpt-4',
+        messages = [
+            {
+                'role':'system',
+                'content':
+                """
+                You are a trivia question quality expert. Your task is to evaluate the quality of incorrect answers in a multiple-choice question.
+                Respond with a JSON object containing:
+                {
+                    'overall_quality': number (0-1),
+                    'answer_analysis': 
+                    [
+                        {
+                            'answer': string,
+                            'is_plausible': boolean,
+                            'difficulty_level': number (1-10),
+                            'explanation': string
+                        }
+                    ],
+                    'suggested_improvements': array of strings (optional)
+                }
+                """
+            },
+            {
+                 'role':'user',
+                 'content': 
+                 f"""
+                Evaluate the following trivia question and its answers:
+                 Question: {question}
+                 Correct Answer: {correct_answer}
+                 Incorrect Answers: {incorrect_answers}
+                 Subject: {subject}
+
+                 Are the incorrect answers plausible and challenging? Would they make the question too easy or too hard?
+                 
+                 IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                2. An answer is plausible if:
+                   - It's close to the correct answer (e.g., a different city, a different person)
+                   - It's a reasonable mistake someone might make
+                   - For dates, answers within a few days to 5 years are plausible.
+                3. An answer is not plausible if:
+                    - It's obviously wrong (e.g. a different planet, a different century, etc.)
+                    - The sentiment of the answer doesn't match the sentiment of the question (e.g. a question about a tragedy is answered with a joke)
+                4. For obviously not plausible answers, set difficulty_level to 2 or lower.
+                5. For very plausible answers, set difficulty_level to 6 or higher, and make sure there is only one suggested_improvements.
+                6. Always include the suggested_improvements key, even if it is just an empty array [] for no suggestions.
+                 """
+            }
+        ]
+    )
+
+    return completion.choices[0].message.content
+
+
+def evaluate_question_balance(question, correct_answer, incorrect_answers, subject):
+    """
+    Checks the balance of both correct and incorrect answers in terms of structure. 
+    
+    The accuracy of the question and correct answer is checked in verify_accuracy. 
+    The quality of incorrect answers is checked in evaluate_incorrect_answers.
+    
+    Overall process: The correct answer is factual, the incorrect answers are not too obviously wrong, and 
+    all the questions are balanced in length and complexity.
+    Functions used:
+    - verify_accuracy
+    - evaluate_incorrect_answers
+    - evaluate_question_balance
+    """
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
+        model = 'gpt-4',
+        messages = 
+        [
+            {
+                'role': 'system',
+                'content':
+                """
+                You are a trivia question balance expert. Your task is to ensure that both the correct and incorrect answers are well balanced in terms of length, complexity, and format.
+                Respond with a JSON object containing:
+                {
+                    'is_well_balanced': boolean,
+                    'balance_score': number (0-1),
+                    'analysis': 
+                    {
+                        'length_balance': boolean, // Are all answers similar in length?
+                        'complexity_balance': boolean, // Are all answers similar in complexity?
+                        'format_balance': boolean // Are all answers similar in format (e.g. standardized dates, capitalization of names and locations, etc.)
+                    },
+                    'reccomendations': array of strings (optional)
+                }
+                """
+            },
+            {
+                'role': 'user',
+                'content':
+                f"""
+                Evaluate the structural balance of this trivia question:
+                Question: {question}
+                Correct Answer: {correct_answer}
+                Incorrect Answers: {incorrect_answers}
+                Subject: {subject}
+
+                Focus only on the structural aspects:
+                1. Are all answers similar in length?
+                2. Are all answers similar in complexity?
+                3. Are all answers in the same format (e.g. standardized dates, capitalization of names and locations, etc.)?
+                The goal is for questions to be similar in structure, but not identical.
+                
+                IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                ...
+
+                """
+            }
+        ]
+    )
+
+    return completion.choices[0].message.content
