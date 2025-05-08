@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import json
 from functions import wiki_trending_today, generate_MC_question_with_answers, get_reddit, choose_best_topics, generate_MC_question_with_answers_v4, verify_accuracy, evaluate_incorrect_answers, evaluate_question_format
 
-def validate_question(title, extract, reddit_posts, reddit_texts, max_attempts=2, is_backup=False):
+def validate_question(title, extract, reddit_posts, reddit_texts, max_attempts=3, is_backup=False):
     attempt = 0
     question_passed = False
     question_data = None

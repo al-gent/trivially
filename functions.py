@@ -10,7 +10,6 @@ import praw
 import pandas as pd
 
 
-
 def wiki_trending_today(n):
     """Grab n trending wikipedia articles from today
     Returns a tuple, (titles, extracts)"""
@@ -42,7 +41,6 @@ def wiki_trending_today(n):
     return titles, extracts
 
 
- 
 def get_reddit(title, n=3):
     """Finds relevant reddit posts about a given title.
     Input: title -> str
@@ -78,7 +76,6 @@ def get_reddit(title, n=3):
         text.append(submission.selftext)
         dates.append(post_date.strftime("%Y-%m-%d %H:%M"))
     return (headlines, text, dates)
-
 
 
 def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts):
@@ -118,97 +115,6 @@ def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts
     return completion.choices[0].message.content
 
 
-<<<<<<< HEAD
-
-def generate_MC_question_with_answers_v2(title, extract, reddit_posts, reddit_texts):
-    client = OpenAI()
-
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": """You are a trivia master that values accuracy. Create a fun and engaging multiple-choice trivia question. 
-                Respond with only the following array of strings, with no additional explanation or text.
-                Do not include markdown formatting or any text outside of the list. Do not add line breaks between entries. Do not use any emojis.
-                [   "<question>",
-                    "<The correct answer>",
-                    "<Incorrect option 1>",
-                    "<Incorrect option 2>",
-                    "<Incorrect option 3>",
-                    "<question category>",
-                    "<question difficulty (1-10)>",
-                    "<question rating (1-10)>",
-                    "<subject of question>" ]
-    .
-                All values must be enclosed in double quotes and formatted as strings."""
-            },
-            {
-                "role": "user",
-                "content": f"""Create a multiple-choice trivia question about '{title}'.
-                Use this context as background information: {extract}.
-                Use these reddit posts to understand why this topic is relevant right now.
-                {[(post, text) for (post, text) in zip(reddit_posts, reddit_texts)]}
-                Allude to why this topic is relevant in the question.
-                Try to have the main topic or subject in the question and not the asnwer.
-                When possible try to avoid using the words or phrases in the answer in teh question as well."""
-            }
-        ])
-
-    # Extract and store the generated question
-    return completion.choices[0].message.content
-
-
-
-def generate_MC_question_with_answers_v3(title, extract, reddit_posts, reddit_texts):
-    client = OpenAI()
-
-    completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are a highly precise trivia master that creates unique, insightful multiple-choice questions rooted in timely context. 
-        Return only a JSON-style list of strings in this format:
-        [
-            "<question>",
-            "<correct answer>",
-            "<incorrect option 1>",
-            "<incorrect option 2>",
-            "<incorrect option 3>",
-            "<category>",
-            "<difficulty (1-10)>",
-            "<rating (1-10)>",
-            "<subject>"
-        ]
-        - The question must be specific, interesting, and not just biographical or headline-based.
-        - The question should reference a unique or lesser-known fact or angle about the topic, especially one that connects to current relevance.
-        - Do not use the correct answer's exact wording in the question unless unavoidable.
-        - Use reasoning, consequence, or impact when possible (e.g., "What policy introduced by X had this effect?" or "Which controversial stance did X take in 2025?")
-        - Never repeat the subject or answer in the question if it spoils it.
-        - Do not include any text, explanation, or formatting outside the list of strings.
-        """
-                },
-                {
-                    "role": "user",
-                    "content": f"""Topic: '{title}'.
-                    Use this background context: {extract}.
-                    Incorporate insight from these Reddit discussions to understand current public interest and framing:
-                    {[(post, text) for (post, text) in zip(reddit_posts, reddit_texts)]}
-                    Allude to why this topic is relevant in the question.
-                    Try to have the main topic or subject in the question and not the asnwer.
-                    When possible try to avoid using the words or phrases in the answer in teh question as well."""
-                }
-            ])
-
-
-    # Extract and store the generated question
-    return completion.choices[0].message.content
-
-
-
-=======
->>>>>>> main
 def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_texts):
     client = OpenAI()
 
@@ -283,7 +189,6 @@ def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_te
 
     # Extract and store the generated question
     return completion.choices[0].message.content
-
 
 
 def verify_accuracy(question, correct_answer, context, subject):
@@ -373,7 +278,6 @@ def verify_accuracy(question, correct_answer, context, subject):
                 print(f"    - {correction}")
     
     return result
-
 
 
 def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subject):
@@ -478,7 +382,6 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
     return result
 
 
-
 def evaluate_question_format(question, correct_answer, incorrect_answers, subject):
     """
     Checks the format of all answers in terms of capitalization and length. 
@@ -559,6 +462,7 @@ def evaluate_question_format(question, correct_answer, incorrect_answers, subjec
 
     return result
 
+
 def extract_topics_from_downloaded_file(n = 20):
     # Step 1: Find latest CSV file in ./downloads
     download_dir = os.path.join(os.getcwd(), "downloads")
@@ -577,7 +481,6 @@ def extract_topics_from_downloaded_file(n = 20):
     df = pd.read_csv(latest_file)
     topics = {df.Trends[i]: df['Search volume'][i] for i in range(n)}
     return topics
-
 
 
 def choose_best_topics(topics, n=10):
@@ -605,7 +508,6 @@ def choose_best_topics(topics, n=10):
     chosen_topics = [key for key, _ in sorted(search_ratings.items(), key=lambda item: item[1], reverse=True)[:n]]
     backup_topics = [key for key, _ in sorted(search_ratings.items(), key=lambda item: item[1], reverse=True)[n:2*n]]
     return chosen_topics, backup_topics
-
 
 
 def google_pipeline_question_gen(topics):
