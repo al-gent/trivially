@@ -9,6 +9,8 @@ import pytz
 import praw
 import pandas as pd
 
+
+
 def wiki_trending_today(n):
     """Grab n trending wikipedia articles from today
     Returns a tuple, (titles, extracts)"""
@@ -78,6 +80,7 @@ def get_reddit(title, n=3):
     return (headlines, text, dates)
 
 
+
 def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts):
     client = OpenAI()
 
@@ -113,6 +116,7 @@ def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts
 
     # Extract and store the generated question
     return completion.choices[0].message.content
+
 
 
 def generate_MC_question_with_answers_v2(title, extract, reddit_posts, reddit_texts):
@@ -152,6 +156,7 @@ def generate_MC_question_with_answers_v2(title, extract, reddit_posts, reddit_te
 
     # Extract and store the generated question
     return completion.choices[0].message.content
+
 
 
 def generate_MC_question_with_answers_v3(title, extract, reddit_posts, reddit_texts):
@@ -198,6 +203,7 @@ def generate_MC_question_with_answers_v3(title, extract, reddit_posts, reddit_te
 
     # Extract and store the generated question
     return completion.choices[0].message.content
+
 
 
 def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_texts):
@@ -281,16 +287,13 @@ def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_te
 def verify_accuracy(question, correct_answer, context, subject):
     """
     Checks the factual accuracy of the question and the correct answer.
-
-    The quality of incorrect answers are checked in a evaluate_incorrect_answers. 
-    The balance of both correct and incorrect answers is checked in evaluate_question_balance.
     
-    Overall process: The correct answer is factual, the incorrect answers are not too obviously wrong, and 
-    all the questions are balanced in length and complexity.
+    Overall process: The correct answer is factual, the incorrect answers are not too obvious, and 
+    all the questions are standardized in capitalization and length.
     Functions used:
-    - verify_accuracy
-    - evaluate_incorrect_answers
-    - evaluate_question_balance
+    - verify_accuracy                   # implemented
+    - evaluate_incorrect_answers        # implemented
+    - evaluate_question_format          # not used
     """
     load_dotenv()
     client = OpenAI()
@@ -302,20 +305,34 @@ def verify_accuracy(question, correct_answer, context, subject):
                 "role":"system",
                 "content": 
                 """
-                You are a fact-checking expert. Your task is to verify if a trivia question and it's answer are factually accurate.
+                You responsible for making sure the question and the correct answer are not obviously false. 
+                You are focused on the overall factual accuracy of the question and the correct answer, and are not concerned about the details.
+                If unsure, assume the question is true. Score each question & answer combo on a scale of 0 to 1, where 0 is false and 1 is true.
+
                 Respond with a JSON object containing:
                 { 
                     "is_factual": boolean,
                     "confidence_score": number (0-1),
                     "explanation": string,
-                    "suggested_corrections": array of strings
+                    "potential_improvements": array of strings
                 }
 
                 IMPORTANT RULES:
                 1. Use double quotes for all property names and string values in the JSON response.
-                2. Always include the "suggested_corrections" array, even if empty.
-                3. For known incorrect answers, set confidence_score to 0.3 or lower.
-                4. For factual questions, set confidence_score to 0.8 or higher.
+                2. Questions about 2025 can be true, even if the event is recent.
+                3. A false question/answer pair should have a confidence score below 0.3, and look like this:
+                    - Question: "What movie franchise is the TV series Andor a part of?"
+                    - Answer: "Marvel Cinematic Universe"
+                    - Confidence score: 0.2
+                4. A true question/answer pair should have a confidence score of 0.5 or higher, and look like this:
+                    - Question: "What movie franchise is the TV series Andor a part of?"
+                    - Answer: "Star Wars"
+                    - Confidence score: 0.9
+                5. For questions/answers that have a confidence score below 0.3, set is_factual to false.
+                6. For questions/answers that have a confidence score of 0.5 or higher, set is_factual to true.
+                7. Ignore minor details and focus on the overall topic accuracy instead.
+                8. When fact checking, consider topics that might have the same meaning (e.g. video games that are also TV series is true)
+                9. Always include the "potential_improvements" array, even if empty.
                 """
             },
             {
@@ -329,7 +346,9 @@ def verify_accuracy(question, correct_answer, context, subject):
                 Context: 
                 {context}
 
-                Is this question and answer factually accurate? Provide your assessment using the JSON format specified above.
+                Is this question and answer not obviously false? 
+                
+                Provide your assessment using the JSON format specified above.
                 """
             }
         ]
@@ -338,31 +357,33 @@ def verify_accuracy(question, correct_answer, context, subject):
     result = completion.choices[0].message.content
     result_dict = json.loads(result)
     
-    if result_dict["is_factual"] and result_dict["confidence_score"] >= 0.8:
-        print(f"✅ Accuracy Test PASSED for question about {subject} with confidence score {result_dict['confidence_score']}")
+    if result_dict["is_factual"]:
+        print(f"✅ Accuracy Test for question about {subject}")
     else:
-        print(f"❌ Accuracy Test FAILED for question about {subject} with confidence score {result_dict['confidence_score']}")
-        if result_dict["suggested_corrections"]:
-            print("   Suggested Corrections:")
-            for correction in result_dict["suggested_corrections"]:
-                print(f"   - {correction}")
+        print(f"❌ Accuracy Test for question about {subject}")
+        if result_dict["potential_improvements"]:
+            print(f"QUESTION: {question}")
+            print(f"CORRECT ANSWER: {correct_answer}")
+            print("REASON FOR FALSE:")
+            print(result_dict["explanation"])
+            print("RECCOMENDATIONS:")
+            for correction in result_dict["potential_improvements"]:
+                print(f"    - {correction}")
     
     return result
+
 
 
 def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subject):
     """
     Checks the quality of incorrect answers so that they are not too easy or obvious. The correct_answer is only used as context for the prompt. 
     
-    The accuracy of the question and correct answer is checked in verify_accuracy. 
-    The balance of both correct and incorrect answers is checked in evaluate_question_balance.
-    
-    Overall process: The correct answer is factual, the incorrect answers are not too obviously wrong, and 
-    all the questions are balanced in length and complexity.
+    Overall process: The correct answer is factual, the incorrect answers are not too obvious, and 
+    all the questions are standardized in capitalization and length.
     Functions used:
-    - verify_accuracy
-    - evaluate_incorrect_answers
-    - evaluate_question_balance
+    - verify_accuracy                   # implemented
+    - evaluate_incorrect_answers        # implemented
+    - evaluate_question_format          # not used
     """
     load_dotenv()
     client = OpenAI()
@@ -374,7 +395,7 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
                 'role':'system',
                 'content':
                 """
-                You are a trivia question quality expert. Your task is to evaluate the quality of incorrect answers in a multiple-choice question.
+                You responsible for making sure the incorrect answers in a multiple-choice question are not too easy or obvious.
                 Respond with a JSON object containing:
                 {
                     "overall_quality": number (0-1),
@@ -387,7 +408,7 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
                             "explanation": string
                         }
                     ],
-                    "suggested_improvements": array of strings
+                    "potential_improvements": array of strings
                 }
 
                 IMPORTANT RULES:
@@ -403,7 +424,7 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
                    - It's in the same category or type as the correct answer
                 4. An answer is not plausible if:
                    - It's obviously wrong (e.g. a different planet, a different century)
-                   - The sentiment of the answer doesn't match the sentiment of the question
+                   - The sentiment of the answer doesn't match the sentiment of the question (e.g. a question about a terrorist attack is not plausible if the answer is a peace prize)
                    - It's completely unrelated to the subject matter
                 5. For obviously not plausible answers:
                    - Set is_plausible to false
@@ -411,9 +432,10 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
                 6. For plausible answers:
                    - Set is_plausible to true
                    - Set difficulty_level to 6 or higher
-                7. Always include the suggested_improvements array, even if empty
-                8. Set overall_quality to 0.7 or higher only if all answers are plausible
-                9. Set overall_quality to 0.3 or lower if any answers are not plausible
+                7. Set overall_quality to 0.7 or higher only if all incorrect answers are plausible
+                8. Set overall_quality to 0.5 if one incorrect answer is not plausible
+                9. Set overall_quality to lower than 0.5 if more than one incorrect answers is not plausible
+                10. Always include the potential_improvements array, even if empty
                 """
             },
             {
@@ -426,12 +448,7 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
                  Incorrect Answers: {incorrect_answers}
                  Subject: {subject}
 
-                 Are the incorrect answers plausible and challenging? Would they make the question too easy or too hard?
-                 
-                 For date-based questions, remember:
-                 - Answers within 1 month or 1 year of the correct date are ALWAYS plausible
-                 - Answers within 5 years are USUALLY plausible
-                 - Answers more than 5 years away are NOT plausible
+                 Are the incorrect answers plausible? Would they make the question too easy or too hard?
                  
                  Provide your assessment using the JSON format specified above.
                  """
@@ -443,30 +460,33 @@ def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subj
     result_dict = json.loads(result)
     
     if result_dict["overall_quality"] >= 0.7:
-        print(f"✅ Plausibility Test PASSED for question about {subject} with quality score {result_dict['overall_quality']}")
+        print(f"✅ Plausibility Test for question about {subject} with quality score {result_dict['overall_quality']}")
     else:
-        print(f"❌ Plausibility Test FAILED for question about {subject} with quality score {result_dict['overall_quality']}")
-        if result_dict["suggested_improvements"]:
-            print("   Suggested Improvements:")
-            for improvement in result_dict["suggested_improvements"]:
-                print(f"   - {improvement}")
+        print(f"❌ Plausibility Test for question about {subject} with quality score {result_dict['overall_quality']}")
+        if result_dict["potential_improvements"]:
+            print(f"QUESTION: {question}")
+            print(f"CORRECT ANSWER: {correct_answer}")
+            print(f"INCORRECT ANSWERS: {incorrect_answers}")
+            print("REASON FOR FALSE:")
+            print(result_dict["answer_analysis"][0]["explanation"])
+            print("RECCOMENDATIONS:")
+            for improvement in result_dict["potential_improvements"]:
+                print(f"    - {improvement}")
 
     return result
 
 
-def evaluate_question_balance(question, correct_answer, incorrect_answers, subject):
+
+def evaluate_question_format(question, correct_answer, incorrect_answers, subject):
     """
-    Checks the balance of both correct and incorrect answers in terms of structure. 
+    Checks the format of all answers in terms of capitalization and length. 
     
-    The accuracy of the question and correct answer is checked in verify_accuracy. 
-    The quality of incorrect answers is checked in evaluate_incorrect_answers.
-    
-    Overall process: The correct answer is factual, the incorrect answers are not too obviously wrong, and 
-    all the questions are balanced in length and complexity.
+    Overall process: The correct answer is factual, the incorrect answers are not too obvious, and 
+    all the questions are standardized in capitalization and length.
     Functions used:
-    - verify_accuracy
-    - evaluate_incorrect_answers
-    - evaluate_question_balance
+    - verify_accuracy                   # implemented
+    - evaluate_incorrect_answers        # implemented
+    - evaluate_question_format          # not used
     """
     client = OpenAI()
 
@@ -478,28 +498,27 @@ def evaluate_question_balance(question, correct_answer, incorrect_answers, subje
                 'role': 'system',
                 'content':
                 """
-                You are a trivia question balance expert. Your task is to ensure that both the correct and incorrect answers are well balanced in terms of length, complexity, and format.
+                You responsible for making sure that all the answers, both correct and incorrect, have the same capitalization patterns and are of similar length. 
                 Respond with a JSON object containing:
                 {
-                    "is_well_balanced": boolean,
-                    "balance_score": number (0-1),
+                    "is_same_format": boolean,
                     "analysis": 
                     {
-                        "length_balance": boolean,
-                        "complexity_balance": boolean,
-                        "format_balance": boolean
+                        "same_capitalization": boolean,
+                        "similar_length": boolean
                     },
-                    "reccomendations": array of strings
+                    "potential_improvements": array of strings
                 }
 
                 IMPORTANT RULES:
                 1. Use double quotes for all property names and string values in the JSON response.
-                2. Length balance: All answers should be within 20% of each other's length.
-                3. Complexity balance: All answers should have similar levels of detail and complexity.
-                4. Format balance: All answers should follow the same format (e.g., same capitalization, same level of formality).
-                5. Set balance_score to 0.7 or higher only if all three balance criteria are met.
-                6. Set balance_score to 0.5 or lower if any balance criteria are not met.
-                7. Always include the reccomendations array, even if empty.
+                2. For same_capitalization: Answers should be in sentence case.
+                    - Answers should start with a capital letter
+                    – Proper nouns should be capitalized (not all answers need to have proper nouns)
+                3. For similar_length: All answers should be within 40% of each other's word count.
+                4. Set is_same_format to true only if all two criteria are met.
+                5. Set is_same_format to false if any criteria are not met.
+                6. Always include the potential_improvements array, even if empty.
                 """
             },
             {
@@ -512,10 +531,7 @@ def evaluate_question_balance(question, correct_answer, incorrect_answers, subje
                 Incorrect Answers: {incorrect_answers}
                 Subject: {subject}
 
-                Focus on these specific aspects:
-                1. Length balance: Are all answers within 20% of each other's length?
-                2. Complexity balance: Do all answers have similar levels of detail and complexity?
-                3. Format balance: Do all answers follow the same format (e.g., same capitalization, same level of formality)?
+                Is the format of all answers similar in terms of capitalization, punctuation, and length?
 
                 Provide your assessment using the JSON format specified above.
                 """
@@ -526,14 +542,18 @@ def evaluate_question_balance(question, correct_answer, incorrect_answers, subje
     result = completion.choices[0].message.content
     result_dict = json.loads(result)
     
-    if result_dict["balance_score"] >= 0.7:
-        print(f"✅ Balance Test PASSED for question about {subject} with balance score {result_dict['balance_score']}")
+    if result_dict["is_same_format"]:
+        print(f"✅ Format Test for question about {subject}")
     else:
-        print(f"❌ Balance Test FAILED for question about {subject} with balance score {result_dict['balance_score']}")
-        if result_dict["reccomendations"]:
-            print("   Recommendations:")
-            for recommendation in result_dict["reccomendations"]:
-                print(f"   - {recommendation}")
+        print(f"❌ Format Test for question about {subject}")
+        if result_dict["potential_improvements"]:
+            print(f"Question: {question}")
+            print(f"Correct Answer: {correct_answer}")
+            print(f"Incorrect Answers: {incorrect_answers}")
+            print("RECCOMENDATIONS:")
+            for recommendation in result_dict["potential_improvements"]:
+                print(f"    - {recommendation}")
+            print()
 
     return result
 
@@ -555,6 +575,8 @@ def extract_topics_from_downloaded_file(n = 20):
     df = pd.read_csv(latest_file)
     topics = {df.Trends[i]: df['Search volume'][i] for i in range(n)}
     return topics
+
+
 
 def choose_best_topics(topics, n=10):
     client = OpenAI()
@@ -579,7 +601,9 @@ def choose_best_topics(topics, n=10):
         ])
     search_ratings = eval(completion.choices[0].message.content)
     chosen_topics = [key for key, _ in sorted(search_ratings.items(), key=lambda item: item[1], reverse=True)[:n]]
-    return chosen_topics
+    backup_topics = [key for key, _ in sorted(search_ratings.items(), key=lambda item: item[1], reverse=True)[n:2*n]]
+    return chosen_topics, backup_topics
+
 
 
 def google_pipeline_question_gen(topics):
