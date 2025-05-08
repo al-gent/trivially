@@ -131,9 +131,8 @@ def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_te
                     - Don't ask questions where the answer is just a single date or year.
                     - The subject (e.g. 'Pope Francis', '2025 Canadian election') must appear in the question for clarity.
                     - Do NOT give away the answer in the question or lead directly to it.
-                    - Focus on ironic, unusual, precedent-breaking, or fun outcomes—not summaries or job titles.
                     - Keep answers short (max 6 words).
-                    - The correct answer should feel surprising but true.
+                    - The correct answer should always be true.
                     - Incorrect answers must be:
                     - Plausible but clearly false
 
