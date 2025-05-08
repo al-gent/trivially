@@ -118,6 +118,7 @@ def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts
     return completion.choices[0].message.content
 
 
+<<<<<<< HEAD
 
 def generate_MC_question_with_answers_v2(title, extract, reddit_posts, reddit_texts):
     client = OpenAI()
@@ -206,6 +207,8 @@ def generate_MC_question_with_answers_v3(title, extract, reddit_posts, reddit_te
 
 
 
+=======
+>>>>>>> main
 def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_texts):
     client = OpenAI()
 
@@ -215,19 +218,18 @@ def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_te
             {
                 "role": "system",
                 "content": """
-                    You are a trivia master who writes fun, clever, and surprising multiple-choice questions.
+                    You are a trivia master who writes fun and engaging multiple-choice questions.
 
                     Your goals:
                     - Make each question a real question (end with a question mark).
+                    - The questions should not be True False type.
+                    - Don't ask questions where the answer is just a single date or year.
                     - The subject (e.g. 'Pope Francis', '2025 Canadian election') must appear in the question for clarity.
                     - Do NOT give away the answer in the question or lead directly to it.
-                    - Focus on ironic, unusual, precedent-breaking, or fun outcomes—not summaries or job titles.
                     - Keep answers short (max 6 words).
-                    - The correct answer should feel surprising but true.
+                    - The correct answer should always be true.
                     - Incorrect answers must be:
                     - Plausible but clearly false
-                    - Related to the topic (avoid nonsense or fantasy)
-                    - Interesting or funny in a grounded way (no aliens, magic, etc.)
 
                     Only respond with the following array:
                     [
@@ -265,7 +267,7 @@ def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_te
                     {[(post, text) for (post, text) in zip(reddit_posts, reddit_texts)]}
 
                     Instructions:
-                    - Highlight something ironic, surprising, controversial, or precedent-breaking.
+                    - Don't ask questions where the answer is just a single date or year.
                     - Don't summarize what happened—reveal something interesting *about* it.
                     - Keep the subject in the question for clarity.
                     - All answers must be under 6 words.
