@@ -9,6 +9,7 @@ import pytz
 import praw
 import pandas as pd
 
+
 def wiki_trending_today(n):
     """Grab n trending wikipedia articles from today
     Returns a tuple, (titles, extracts)"""
@@ -38,6 +39,7 @@ def wiki_trending_today(n):
             extracts.append(extract)
             print(title)
     return titles, extracts
+
 
 def get_reddit(title, n=3):
     """Finds relevant reddit posts about a given title.
@@ -74,7 +76,6 @@ def get_reddit(title, n=3):
         text.append(submission.selftext)
         dates.append(post_date.strftime("%Y-%m-%d %H:%M"))
     return (headlines, text, dates)
-
 
 
 def generate_MC_question_with_answers(title, extract, reddit_posts, reddit_texts):
@@ -190,6 +191,278 @@ def generate_MC_question_with_answers_v4(title, extract, reddit_posts, reddit_te
     return completion.choices[0].message.content
 
 
+def verify_accuracy(question, correct_answer, context, subject):
+    """
+    Checks the factual accuracy of the question and the correct answer.
+    
+    Overall process: The correct answer is factual, the incorrect answers are not too obvious, and 
+    all the questions are standardized in capitalization and length.
+    Functions used:
+    - verify_accuracy                   # implemented
+    - evaluate_incorrect_answers        # implemented
+    - evaluate_question_format          # not used
+    """
+    load_dotenv()
+    client = OpenAI()
+    
+    completion = client.chat.completions.create(
+        model = "gpt-4",
+        messages = [
+            {
+                "role":"system",
+                "content": 
+                """
+                You responsible for making sure the question and the correct answer are not obviously false. 
+                You are focused on the overall factual accuracy of the question and the correct answer, and are not concerned about the details.
+                If unsure, assume the question is true. Score each question & answer combo on a scale of 0 to 1, where 0 is false and 1 is true.
+
+                Respond with a JSON object containing:
+                { 
+                    "is_factual": boolean,
+                    "confidence_score": number (0-1),
+                    "explanation": string,
+                    "potential_improvements": array of strings
+                }
+
+                IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                2. Questions about 2025 can be true, even if the event is recent.
+                3. A false question/answer pair should have a confidence score below 0.3, and look like this:
+                    - Question: "What movie franchise is the TV series Andor a part of?"
+                    - Answer: "Marvel Cinematic Universe"
+                    - Confidence score: 0.2
+                4. A true question/answer pair should have a confidence score of 0.5 or higher, and look like this:
+                    - Question: "What movie franchise is the TV series Andor a part of?"
+                    - Answer: "Star Wars"
+                    - Confidence score: 0.9
+                5. For questions/answers that have a confidence score below 0.3, set is_factual to false.
+                6. For questions/answers that have a confidence score of 0.5 or higher, set is_factual to true.
+                7. Ignore minor details and focus on the overall topic accuracy instead.
+                8. When fact checking, consider topics that might have the same meaning (e.g. video games that are also TV series is true)
+                9. Always include the "potential_improvements" array, even if empty.
+                """
+            },
+            {
+                "role":"user",
+                "content": 
+                f"""
+                Verify the following trivia question:
+                Subject: {subject}
+                Question: {question}
+                Correct Answer: {correct_answer}
+                Context: 
+                {context}
+
+                Is this question and answer not obviously false? 
+                
+                Provide your assessment using the JSON format specified above.
+                """
+            }
+        ]
+    )
+    
+    result = completion.choices[0].message.content
+    result_dict = json.loads(result)
+    
+    if result_dict["is_factual"]:
+        print(f"✅ Accuracy Test for question about {subject}")
+    else:
+        print(f"❌ Accuracy Test for question about {subject}")
+        if result_dict["potential_improvements"]:
+            print(f"QUESTION: {question}")
+            print(f"CORRECT ANSWER: {correct_answer}")
+            print("REASON FOR FALSE:")
+            print(result_dict["explanation"])
+            print("RECCOMENDATIONS:")
+            for correction in result_dict["potential_improvements"]:
+                print(f"    - {correction}")
+    
+    return result
+
+
+def evaluate_incorrect_answers(question, correct_answer, incorrect_answers, subject):
+    """
+    Checks the quality of incorrect answers so that they are not too easy or obvious. The correct_answer is only used as context for the prompt. 
+    
+    Overall process: The correct answer is factual, the incorrect answers are not too obvious, and 
+    all the questions are standardized in capitalization and length.
+    Functions used:
+    - verify_accuracy                   # implemented
+    - evaluate_incorrect_answers        # implemented
+    - evaluate_question_format          # not used
+    """
+    load_dotenv()
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
+        model = 'gpt-4',
+        messages = [
+            {
+                'role':'system',
+                'content':
+                """
+                You responsible for making sure the incorrect answers in a multiple-choice question are not too easy or obvious.
+                Respond with a JSON object containing:
+                {
+                    "overall_quality": number (0-1),
+                    "answer_analysis": 
+                    [
+                        {
+                            "answer": string,
+                            "is_plausible": boolean,
+                            "difficulty_level": number (1-10),
+                            "explanation": string
+                        }
+                    ],
+                    "potential_improvements": array of strings
+                }
+
+                IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                2. For date-based questions:
+                   - Answers within 1 month of the correct date are ALWAYS plausible
+                   - Answers within 1 year of the correct date are ALWAYS plausible
+                   - Answers within 5 years of the correct date are USUALLY plausible
+                   - Answers more than 5 years away are NOT plausible
+                3. For non-date questions, an answer is plausible if:
+                   - It's close to the correct answer (e.g., a different city, a different person)
+                   - It's a reasonable mistake someone might make
+                   - It's in the same category or type as the correct answer
+                4. An answer is not plausible if:
+                   - It's obviously wrong (e.g. a different planet, a different century)
+                   - The sentiment of the answer doesn't match the sentiment of the question (e.g. a question about a terrorist attack is not plausible if the answer is a peace prize)
+                   - It's completely unrelated to the subject matter
+                5. For obviously not plausible answers:
+                   - Set is_plausible to false
+                   - Set difficulty_level to 2 or lower
+                6. For plausible answers:
+                   - Set is_plausible to true
+                   - Set difficulty_level to 6 or higher
+                7. Set overall_quality to 0.7 or higher only if all incorrect answers are plausible
+                8. Set overall_quality to 0.5 if one incorrect answer is not plausible
+                9. Set overall_quality to lower than 0.5 if more than one incorrect answers is not plausible
+                10. Always include the potential_improvements array, even if empty
+                """
+            },
+            {
+                 'role':'user',
+                 'content': 
+                 f"""
+                Evaluate the following trivia question and its answers:
+                 Question: {question}
+                 Correct Answer: {correct_answer}
+                 Incorrect Answers: {incorrect_answers}
+                 Subject: {subject}
+
+                 Are the incorrect answers plausible? Would they make the question too easy or too hard?
+                 
+                 Provide your assessment using the JSON format specified above.
+                 """
+            }
+        ]
+    )
+
+    result = completion.choices[0].message.content
+    result_dict = json.loads(result)
+    
+    if result_dict["overall_quality"] >= 0.7:
+        print(f"✅ Plausibility Test for question about {subject} with quality score {result_dict['overall_quality']}")
+    else:
+        print(f"❌ Plausibility Test for question about {subject} with quality score {result_dict['overall_quality']}")
+        if result_dict["potential_improvements"]:
+            print(f"QUESTION: {question}")
+            print(f"CORRECT ANSWER: {correct_answer}")
+            print(f"INCORRECT ANSWERS: {incorrect_answers}")
+            print("REASON FOR FALSE:")
+            print(result_dict["answer_analysis"][0]["explanation"])
+            print("RECCOMENDATIONS:")
+            for improvement in result_dict["potential_improvements"]:
+                print(f"    - {improvement}")
+
+    return result
+
+
+def evaluate_question_format(question, correct_answer, incorrect_answers, subject):
+    """
+    Checks the format of all answers in terms of capitalization and length. 
+    
+    Overall process: The correct answer is factual, the incorrect answers are not too obvious, and 
+    all the questions are standardized in capitalization and length.
+    Functions used:
+    - verify_accuracy                   # implemented
+    - evaluate_incorrect_answers        # implemented
+    - evaluate_question_format          # not used
+    """
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
+        model = 'gpt-4',
+        messages = 
+        [
+            {
+                'role': 'system',
+                'content':
+                """
+                You responsible for making sure that all the answers, both correct and incorrect, have the same capitalization patterns and are of similar length. 
+                Respond with a JSON object containing:
+                {
+                    "is_same_format": boolean,
+                    "analysis": 
+                    {
+                        "same_capitalization": boolean,
+                        "similar_length": boolean
+                    },
+                    "potential_improvements": array of strings
+                }
+
+                IMPORTANT RULES:
+                1. Use double quotes for all property names and string values in the JSON response.
+                2. For same_capitalization: Answers should be in sentence case.
+                    - Answers should start with a capital letter
+                    – Proper nouns should be capitalized (not all answers need to have proper nouns)
+                3. For similar_length: All answers should be within 40% of each other's word count.
+                4. Set is_same_format to true only if all two criteria are met.
+                5. Set is_same_format to false if any criteria are not met.
+                6. Always include the potential_improvements array, even if empty.
+                """
+            },
+            {
+                'role': 'user',
+                'content':
+                f"""
+                Evaluate the structural balance of this trivia question:
+                Question: {question}
+                Correct Answer: {correct_answer}
+                Incorrect Answers: {incorrect_answers}
+                Subject: {subject}
+
+                Is the format of all answers similar in terms of capitalization, punctuation, and length?
+
+                Provide your assessment using the JSON format specified above.
+                """
+            }
+        ]
+    )
+
+    result = completion.choices[0].message.content
+    result_dict = json.loads(result)
+    
+    if result_dict["is_same_format"]:
+        print(f"✅ Format Test for question about {subject}")
+    else:
+        print(f"❌ Format Test for question about {subject}")
+        if result_dict["potential_improvements"]:
+            print(f"Question: {question}")
+            print(f"Correct Answer: {correct_answer}")
+            print(f"Incorrect Answers: {incorrect_answers}")
+            print("RECCOMENDATIONS:")
+            for recommendation in result_dict["potential_improvements"]:
+                print(f"    - {recommendation}")
+            print()
+
+    return result
+
+
 def extract_topics_from_downloaded_file(n = 20):
     # Step 1: Find latest CSV file in ./downloads
     download_dir = os.path.join(os.getcwd(), "downloads")
@@ -208,6 +481,7 @@ def extract_topics_from_downloaded_file(n = 20):
     df = pd.read_csv(latest_file)
     topics = {df.Trends[i]: df['Search volume'][i] for i in range(n)}
     return topics
+
 
 def choose_best_topics(topics, n=10):
     client = OpenAI()
@@ -232,7 +506,8 @@ def choose_best_topics(topics, n=10):
         ])
     search_ratings = eval(completion.choices[0].message.content)
     chosen_topics = [key for key, _ in sorted(search_ratings.items(), key=lambda item: item[1], reverse=True)[:n]]
-    return chosen_topics
+    backup_topics = [key for key, _ in sorted(search_ratings.items(), key=lambda item: item[1], reverse=True)[n:2*n]]
+    return chosen_topics, backup_topics
 
 
 def google_pipeline_question_gen(topics):
@@ -287,3 +562,4 @@ def google_pipeline_question_gen(topics):
 
         results.append(make_question_and_answers.choices[0].message.content)
     return results
+
