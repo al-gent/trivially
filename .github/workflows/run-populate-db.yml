@@ -11,8 +11,10 @@ jobs:
 
     steps:
       # Step 1: Check out the repository
-      - name: Checkout code
+      - name: Checkout track_thumbs branch
         uses: actions/checkout@v3
+        with:
+          ref: track_thumbs
 
       # Step 2: Set up Python environment
       - name: Set up Python
